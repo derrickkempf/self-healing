@@ -10,7 +10,6 @@ import { unblockReveal } from "../utils/reveal-gate";
  *   0.05 - thin top hairline scales in (10ms ease)
  *   0.10 - logo reveals via a left-to-right clip-path wipe
  *   0.85 - tagline characters stagger in
- *   1.30 - thin progress line under the logo fills L→R
  *   1.90 - tagline + logo fade slightly, then…
  *   2.10 - whole overlay slides up (yPercent: -100) revealing the page
  *
@@ -39,7 +38,6 @@ export default function IntroOverlay({ force = false, onDone }: Props) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const logoRef = useRef<HTMLDivElement | null>(null);
   const taglineRef = useRef<HTMLDivElement | null>(null);
-  const lineRef = useRef<HTMLDivElement | null>(null);
   const topLineRef = useRef<HTMLDivElement | null>(null);
   const counterRef = useRef<HTMLSpanElement | null>(null);
   const tlRef = useRef<gsap.core.Timeline | null>(null);
@@ -56,7 +54,6 @@ export default function IntroOverlay({ force = false, onDone }: Props) {
         clipPath: "inset(0 100% 0 0)",
         opacity: 1,
       });
-      gsap.set(lineRef.current, { scaleX: 0, transformOrigin: "left center" });
       gsap.set(".intro-char", { yPercent: 110, opacity: 0 });
 
       const tl = gsap.timeline({
@@ -114,12 +111,7 @@ export default function IntroOverlay({ force = false, onDone }: Props) {
           0.85,
         )
         .to(
-          lineRef.current,
-          { scaleX: 1, duration: 0.7, ease: "power2.inOut" },
-          1.0,
-        )
-        .to(
-          [logoRef.current, taglineRef.current, lineRef.current, topLineRef.current],
+          [logoRef.current, taglineRef.current, topLineRef.current],
           { opacity: 0, duration: 0.4, ease: "power2.in" },
           "+=0.25",
         )
@@ -137,7 +129,13 @@ export default function IntroOverlay({ force = false, onDone }: Props) {
       tlRef.current = tl;
     }, rootRef);
 
-    return () => ctx.revert();
+    return () => {
+      // Always release the reveal-gate on unmount — belt + suspenders in
+      // case the timeline got killed (StrictMode, fast remount) before its
+      // own unblock call fired.
+      unblockReveal("intro");
+      ctx.revert();
+    };
   }, [show, onDone]);
 
   function handleSkip() {
@@ -149,7 +147,7 @@ export default function IntroOverlay({ force = false, onDone }: Props) {
 
   if (!show) return null;
 
-  const tagline = "Production Tracker · 2026";
+  const tagline = "Between every cut a space for healing";
 
   return (
     <div
@@ -172,11 +170,6 @@ export default function IntroOverlay({ force = false, onDone }: Props) {
         style={{ willChange: "clip-path" }}
       >
         <img src="/logo.svg" alt="Self-Healing" className="w-full h-auto" />
-      </div>
-
-      {/* Underline that fills */}
-      <div className="w-[min(80vw,540px)] mt-6 px-4">
-        <div ref={lineRef} className="h-px bg-white/60 w-full" />
       </div>
 
       {/* Tagline with char-stagger */}

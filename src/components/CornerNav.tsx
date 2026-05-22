@@ -17,7 +17,7 @@ import { Link } from "react-router-dom";
  */
 export default function CornerNav() {
   const linkClass =
-    "font-serif leading-none text-white/50 hover:text-white transition-colors";
+    "font-serif uppercase leading-none text-white/50 hover:text-white transition-colors";
   const linkStyle = { fontSize: "3rem" } as const;
 
   return (

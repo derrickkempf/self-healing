@@ -24,10 +24,17 @@ const listeners = new Set<() => void>();
 // Boot-time state: if the intro hasn't been seen yet this session,
 // preemptively block. The IntroOverlay component will release this
 // when its timeline starts its exit tween.
+//
+// Failsafe: if IntroOverlay's timeline gets killed before it can call
+// unblock (StrictMode double-invocation, fast remount, gsap context
+// revert, etc.) we'd leave above-the-fold Reveals stuck at opacity 0.
+// The intro timeline runs ~3.1s total, so 4s is a safe ceiling that
+// won't fight a healthy intro but will rescue a broken one.
 if (typeof window !== "undefined") {
   try {
     if (sessionStorage.getItem("sh.intro.seen") !== "1") {
       blockers.add("intro");
+      setTimeout(() => unblockReveal("intro"), 4000);
     }
   } catch {
     // Safari private mode etc. — fall through; the intro will release.
