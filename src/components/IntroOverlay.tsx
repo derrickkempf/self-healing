@@ -46,95 +46,104 @@ export default function IntroOverlay({ force = false, onDone }: Props) {
     if (!show) return;
     if (!rootRef.current) return;
 
-    const ctx = gsap.context(() => {
-      // Initial states
-      gsap.set(rootRef.current, { autoAlpha: 1, yPercent: 0 });
-      gsap.set(topLineRef.current, { scaleX: 0, transformOrigin: "left center" });
-      gsap.set(logoRef.current, {
-        clipPath: "inset(0 100% 0 0)",
-        opacity: 1,
-      });
-      gsap.set(".intro-char", { yPercent: 110, opacity: 0 });
+    // NOTE: deliberately NOT wrapping this in gsap.context(). The previous
+    // version did, and ctx.revert() on unmount was killing the hero's
+    // <Reveal> fade-in tween via gsap's cross-context tracking (the
+    // tween was scheduled from inside one of this timeline's .call
+    // callbacks, which gsap apparently associates with the surrounding
+    // context). Result: hero faded in, then snapped back to opacity 0
+    // when the overlay unmounted. Plain gsap calls + manual tl.kill()
+    // on unmount sidesteps the issue entirely.
+    const introChars = rootRef.current.querySelectorAll(".intro-char");
 
-      const tl = gsap.timeline({
-        defaults: { ease: "power3.out" },
-        onComplete: () => {
-          // Idempotent — also called from the exit tween's onStart and from
-          // handleSkip(). Belt + suspenders in case anything jumps past the
-          // call without firing it.
-          unblockReveal("intro");
-          try {
-            sessionStorage.setItem(STORAGE_KEY, "1");
-          } catch {
-            /* private mode etc. — ignore */
-          }
-          setShow(false);
-          onDone?.();
+    // Initial states
+    gsap.set(rootRef.current, { autoAlpha: 1, yPercent: 0 });
+    gsap.set(topLineRef.current, { scaleX: 0, transformOrigin: "left center" });
+    gsap.set(logoRef.current, {
+      clipPath: "inset(0 100% 0 0)",
+      opacity: 1,
+    });
+    gsap.set(introChars, { yPercent: 110, opacity: 0 });
+
+    const tl = gsap.timeline({
+      defaults: { ease: "power3.out" },
+      onComplete: () => {
+        // Idempotent — also called from the exit tween's onStart and from
+        // handleSkip(). Belt + suspenders in case anything jumps past the
+        // call without firing it.
+        unblockReveal("intro");
+        try {
+          sessionStorage.setItem(STORAGE_KEY, "1");
+        } catch {
+          /* private mode etc. — ignore */
+        }
+        setShow(false);
+        onDone?.();
+      },
+    });
+
+    tl.to(topLineRef.current, { scaleX: 1, duration: 0.5, ease: "power2.out" }, 0.05)
+      .to(
+        logoRef.current,
+        {
+          clipPath: "inset(0 0% 0 0)",
+          duration: 0.95,
+          ease: "expo.out",
         },
-      });
+        0.1,
+      )
+      // Animate a "0 → 100" counter alongside the wipe.
+      .to(
+        { v: 0 },
+        {
+          v: 100,
+          duration: 1.4,
+          ease: "power1.inOut",
+          onUpdate() {
+            const v = Math.round(this.targets()[0].v);
+            if (counterRef.current) {
+              counterRef.current.textContent = String(v).padStart(3, "0");
+            }
+          },
+        },
+        0.1,
+      )
+      .to(
+        introChars,
+        {
+          yPercent: 0,
+          opacity: 1,
+          duration: 0.6,
+          stagger: 0.025,
+          ease: "power3.out",
+        },
+        0.85,
+      )
+      .to(
+        [logoRef.current, taglineRef.current, topLineRef.current],
+        { opacity: 0, duration: 0.4, ease: "power2.in" },
+        "+=0.25",
+      )
+      // Unblock the reveal-gate the moment the overlay starts sliding off,
+      // so above-the-fold <Reveal>s start fading up *while* the overlay
+      // rises. By the time the overlay is gone, content is mid-animation —
+      // no awkward "page appears empty, then animates" two-step.
+      .call(() => unblockReveal("intro"), [], "-=0.15")
+      .to(
+        rootRef.current,
+        { yPercent: -100, duration: 0.9, ease: "expo.inOut" },
+        "<",
+      );
 
-      tl.to(topLineRef.current, { scaleX: 1, duration: 0.5, ease: "power2.out" }, 0.05)
-        .to(
-          logoRef.current,
-          {
-            clipPath: "inset(0 0% 0 0)",
-            duration: 0.95,
-            ease: "expo.out",
-          },
-          0.1,
-        )
-        // Animate a "0 → 100" counter alongside the wipe.
-        .to(
-          { v: 0 },
-          {
-            v: 100,
-            duration: 1.4,
-            ease: "power1.inOut",
-            onUpdate() {
-              const v = Math.round(this.targets()[0].v);
-              if (counterRef.current) {
-                counterRef.current.textContent = String(v).padStart(3, "0");
-              }
-            },
-          },
-          0.1,
-        )
-        .to(
-          ".intro-char",
-          {
-            yPercent: 0,
-            opacity: 1,
-            duration: 0.6,
-            stagger: 0.025,
-            ease: "power3.out",
-          },
-          0.85,
-        )
-        .to(
-          [logoRef.current, taglineRef.current, topLineRef.current],
-          { opacity: 0, duration: 0.4, ease: "power2.in" },
-          "+=0.25",
-        )
-        // Unblock the reveal-gate the moment the overlay starts sliding off,
-        // so above-the-fold <Reveal>s start fading up *while* the overlay
-        // rises. By the time the overlay is gone, content is mid-animation —
-        // no awkward "page appears empty, then animates" two-step.
-        .call(() => unblockReveal("intro"), [], "-=0.15")
-        .to(
-          rootRef.current,
-          { yPercent: -100, duration: 0.9, ease: "expo.inOut" },
-          "<",
-        );
-
-      tlRef.current = tl;
-    }, rootRef);
+    tlRef.current = tl;
 
     return () => {
       // Always release the reveal-gate on unmount — belt + suspenders in
-      // case the timeline got killed (StrictMode, fast remount) before its
-      // own unblock call fired.
+      // case the timeline got killed before its own unblock call fired.
       unblockReveal("intro");
-      ctx.revert();
+      // Kill the timeline (stops the tick + frees handlers). Deliberately
+      // no ctx.revert() — see note at the top of this effect.
+      tl.kill();
     };
   }, [show, onDone]);
 
