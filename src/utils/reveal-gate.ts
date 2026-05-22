@@ -50,7 +50,13 @@ export function unblockReveal(reason: Reason): void {
   if (blockers.size === 0 && listeners.size > 0) {
     const toFire = Array.from(listeners);
     listeners.clear();
-    toFire.forEach((fn) => fn());
+    // Defer to a fresh task. unblockReveal is sometimes invoked from inside
+    // an active gsap.context (e.g., from a timeline's .call callback in
+    // IntroOverlay). If the listener creates gsap tweens synchronously,
+    // those tweens get recorded into that context — and a later
+    // ctx.revert() on unmount would yank them back to their start state.
+    // Hopping out to setTimeout escapes the context cleanly.
+    toFire.forEach((fn) => setTimeout(fn, 0));
   }
 }
 
