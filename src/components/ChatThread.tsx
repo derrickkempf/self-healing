@@ -5,7 +5,7 @@ import {
   sendMessage,
   subscribe,
 } from "../utils/supabase";
-import type { Message } from "../types";
+import type { Message, Profile } from "../types";
 
 interface Props {
   currentEmail: string;
@@ -29,27 +29,79 @@ interface Props {
  *     visually grouped into a single avatar + label block.
  *   • Auto-scrolls to the latest message when new ones arrive.
  *
- * When swapping to real Supabase, replace listMessages/subscribe with
- * `supabase.from('messages').select().order(...)` plus
- * `supabase.channel('messages').on('postgres_changes', ...)`.
+ * Backed by Supabase. `listMessages` is reloaded whenever realtime fires
+ * a change on the `messages` table. Profiles are fetched lazily and
+ * cached in component state so we don't re-query for every render.
  */
 export default function ChatThread({ currentEmail }: Props) {
-  const [messages, setMessages] = useState<Message[]>(() => listMessages());
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [draft, setDraft] = useState("");
   const endRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => subscribe("messages", () => setMessages(listMessages())), []);
+  // Load messages + subscribe to realtime updates.
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const rows = await listMessages();
+      if (!cancelled) setMessages(rows);
+    }
+    load();
+    const unsub = subscribe("messages", load);
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, []);
+
+  // Whenever a new sender appears in the messages list, fetch their
+  // profile once and cache it. Same for the profiles channel — if anyone
+  // updates their display name or avatar, refresh that row.
+  useEffect(() => {
+    const seen = new Set(messages.map((m) => m.sender_email));
+    const missing = Array.from(seen).filter((email) => !profiles[email]);
+    if (missing.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const fetched = await Promise.all(missing.map((e) => getProfile(e)));
+      if (cancelled) return;
+      setProfiles((prev) => {
+        const next = { ...prev };
+        for (const p of fetched) next[p.email] = p;
+        return next;
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, profiles]);
+
+  // Subscribe to profile updates so display-name / avatar changes are picked
+  // up live.
+  useEffect(() => {
+    const unsub = subscribe("profiles", async () => {
+      const emails = Object.keys(profiles);
+      if (emails.length === 0) return;
+      const fetched = await Promise.all(emails.map((e) => getProfile(e)));
+      setProfiles((prev) => {
+        const next = { ...prev };
+        for (const p of fetched) next[p.email] = p;
+        return next;
+      });
+    });
+    return unsub;
+  }, [profiles]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages.length]);
 
-  function handleSend(e: React.FormEvent) {
+  async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     const text = draft.trim();
     if (!text) return;
-    sendMessage(currentEmail, text);
-    setDraft("");
+    setDraft(""); // optimistic clear
+    await sendMessage(currentEmail, text);
   }
 
   const groups = useMemo(() => groupMessages(messages), [messages]);
@@ -68,6 +120,7 @@ export default function ChatThread({ currentEmail }: Props) {
                 key={gi}
                 group={g}
                 isSelf={g.email === currentEmail}
+                profile={profiles[g.email]}
               />
             ))}
             <div ref={endRef} />
@@ -102,11 +155,18 @@ export default function ChatThread({ currentEmail }: Props) {
 // MessageGroup — one avatar block + N bubbles + sender/time label
 // ============================================================================
 
-function MessageGroup({ group, isSelf }: { group: Group; isSelf: boolean }) {
-  const profile = getProfile(group.email);
+function MessageGroup({
+  group,
+  isSelf,
+  profile,
+}: {
+  group: Group;
+  isSelf: boolean;
+  profile: Profile | undefined;
+}) {
   const displayName = isSelf
     ? "You"
-    : profile.display_name || group.email.split("@")[0];
+    : profile?.display_name || group.email.split("@")[0];
   const lastTime = group.messages[group.messages.length - 1].created_at;
 
   return (
@@ -119,7 +179,7 @@ function MessageGroup({ group, isSelf }: { group: Group; isSelf: boolean }) {
         {/* Avatar — others only */}
         {!isSelf && (
           <Avatar
-            avatarUrl={profile.avatar_url}
+            avatarUrl={profile?.avatar_url ?? null}
             seed={group.email}
             size={40}
           />
@@ -245,7 +305,8 @@ function groupMessages(messages: Message[]): Group[] {
 
 function withinMinutes(a: string, b: string, minutes: number): boolean {
   return (
-    Math.abs(new Date(a).getTime() - new Date(b).getTime()) < minutes * 60 * 1000
+    Math.abs(new Date(a).getTime() - new Date(b).getTime()) <
+    minutes * 60 * 1000
   );
 }
 

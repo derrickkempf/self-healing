@@ -58,7 +58,7 @@ export default function PostForm({ open, onClose, authorEmail, onCreated }: Prop
     setError(null);
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     if (!title.trim() || !content.trim()) {
@@ -66,13 +66,19 @@ export default function PostForm({ open, onClose, authorEmail, onCreated }: Prop
       return;
     }
     setSubmitting(true);
-    createPost({
+    const created = await createPost({
       title: title.trim(),
       content: content.trim(),
       image_url: imageUrl,
       author_email: authorEmail,
     });
     setSubmitting(false);
+    if (!created) {
+      setError(
+        "Couldn't save the post. Check your connection and try again.",
+      );
+      return;
+    }
     onCreated?.();
     onClose();
   }

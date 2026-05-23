@@ -9,16 +9,18 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import { requestCode, verifyCode } from "../utils/auth";
+import { useAuth } from "../utils/useAuth";
 
 type Step = "email" | "code";
 
 /**
- * Three-step email-code sign-in flow.
+ * Three-step email-code sign-in flow, powered by Supabase Auth's OTP.
  *
- * Visual notes (per provided screenshots):
- *   • Step 1 — "Account" heading (Instrument Serif), email input, Continue.
- *   • Step 2 — "Check your email" heading, "Code sent to <email>",
- *     six monospaced code cells, Verify button, "Use a different email" link.
+ *   1. User enters email.
+ *   2. We check the client-side whitelist for fast UX, then call
+ *      supabase.auth.signInWithOtp — Supabase emails them a 6-digit code.
+ *   3. User pastes the code; we verifyOtp; on success Supabase has set
+ *      the session and we navigate to the dashboard.
  *
  * Dark theme throughout: black background, white type, hairline borders.
  */
@@ -38,7 +40,7 @@ export default function Login() {
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
-  function handleRequestCode(e: React.FormEvent) {
+  async function handleRequestCode(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     if (!emailValid) {
@@ -46,12 +48,16 @@ export default function Login() {
       return;
     }
     setSubmitting(true);
-    const res = requestCode(email);
+    const res = await requestCode(email);
     setSubmitting(false);
     if (!res.ok) {
-      setError(
-        "This email isn't authorized for access. Reach out to the project owner.",
-      );
+      if (res.reason === "not_whitelisted") {
+        setError(
+          "This email isn't authorized for access. Reach out to the project owner.",
+        );
+      } else {
+        setError("Couldn't send the code. Try again in a moment.");
+      }
       return;
     }
     setDevCode(res.devCode ?? null);
@@ -61,7 +67,7 @@ export default function Login() {
     setTimeout(() => cellRefs.current[0]?.focus(), 30);
   }
 
-  function handleVerify(e?: React.FormEvent) {
+  async function handleVerify(e?: React.FormEvent) {
     e?.preventDefault();
     setError(null);
     const code = digits.join("");
@@ -70,7 +76,7 @@ export default function Login() {
       return;
     }
     setSubmitting(true);
-    const res = verifyCode(email, code);
+    const res = await verifyCode(email, code);
     setSubmitting(false);
     if (!res.ok) {
       setError("That code is invalid or has expired. Request a new one.");
@@ -102,7 +108,10 @@ export default function Login() {
   }
 
   function handlePaste(e: ClipboardEvent<HTMLInputElement>) {
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    const pasted = e.clipboardData
+      .getData("text")
+      .replace(/\D/g, "")
+      .slice(0, 6);
     if (!pasted) return;
     e.preventDefault();
     const next = ["", "", "", "", "", ""];
@@ -112,9 +121,9 @@ export default function Login() {
     cellRefs.current[focusIdx]?.focus();
   }
 
-  function resendCode() {
+  async function resendCode() {
     setError(null);
-    const res = requestCode(email);
+    const res = await requestCode(email);
     if (res.ok) {
       setDevCode(res.devCode ?? null);
       setDigits(["", "", "", "", "", ""]);
@@ -123,10 +132,10 @@ export default function Login() {
   }
 
   // If the user is already authenticated, bounce them onward.
+  const { session, loading } = useAuth();
   useEffect(() => {
-    const session = localStorage.getItem("sh.session");
-    if (session) navigate(redirectTo, { replace: true });
-  }, [navigate, redirectTo]);
+    if (!loading && session) navigate(redirectTo, { replace: true });
+  }, [loading, session, navigate, redirectTo]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -234,12 +243,12 @@ export default function Login() {
                     Dev mode
                   </span>
                   <br />
-                  Mocked backend — your code is{" "}
+                  Supabase not configured — your code is{" "}
                   <span className="text-white font-medium tracking-widest">
                     {devCode}
                   </span>
-                  . In production this is emailed via SendGrid / Supabase Edge
-                  Functions and will not appear here.
+                  . Once you set VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY,
+                  real codes are emailed and this panel disappears.
                 </p>
               )}
 

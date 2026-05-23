@@ -12,9 +12,29 @@ import type { Post } from "../types";
  * when above the fold on initial mount.
  */
 export default function PostFeed() {
-  const [posts, setPosts] = useState<Post[]>(() => listPosts());
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => subscribe("posts", () => setPosts(listPosts())), []);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const rows = await listPosts();
+      if (!cancelled) {
+        setPosts(rows);
+        setLoading(false);
+      }
+    }
+    load();
+    const unsub = subscribe("posts", load);
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, []);
+
+  if (loading) {
+    return <p className="text-muted text-sm py-12 text-center">Loading…</p>;
+  }
 
   if (posts.length === 0) {
     return (
@@ -27,11 +47,7 @@ export default function PostFeed() {
   return (
     <ol className="space-y-14">
       {posts.map((p, i) => (
-        <Reveal
-          as="li"
-          key={p.id}
-          delay={i < 2 ? i * 0.08 : 0}
-        >
+        <Reveal as="li" key={p.id} delay={i < 2 ? i * 0.08 : 0}>
           <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.18em] text-muted mb-3">
             <span>{formatDateTime(p.created_at)}</span>
             <span aria-hidden>·</span>

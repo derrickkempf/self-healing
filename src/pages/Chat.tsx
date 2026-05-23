@@ -1,10 +1,10 @@
 import Header from "../components/Header";
 import ChatThread from "../components/ChatThread";
 import Reveal from "../components/Reveal";
-import { getSession } from "../utils/auth";
+import { useAuth } from "../utils/useAuth";
 
 export default function Chat() {
-  const session = getSession();
+  const { session } = useAuth();
   return (
     <div className="min-h-screen flex flex-col">
       <Header variant="private" />

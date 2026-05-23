@@ -9,19 +9,28 @@
  *     API permission, and (c) `ignore_own` so an author isn't pinged about
  *     their own post.
  *
- * In production this is augmented by server-sent email: when the
- * Supabase Edge Function inserts a post, it also enqueues an email to every
- * whitelisted address whose `notification_prefs.new_posts` is true.
+ * In production this is augmented by server-sent email: when Supabase
+ * notifies on the realtime channel, a separate Edge Function (not in this
+ * repo) reads `notification_prefs` and enqueues digest emails.
  */
 
-import { listMessages, listPosts, getNotificationPrefs, subscribe } from "./supabase";
+import {
+  listMessages,
+  listPosts,
+  getNotificationPrefs,
+  subscribe,
+} from "./supabase";
 
 const SEEN_KEYS = {
   posts: "sh.last_seen.posts",
   messages: "sh.last_seen.messages",
 } as const;
 
-export type NotificationPermission = "default" | "granted" | "denied" | "unsupported";
+export type NotificationPermission =
+  | "default"
+  | "granted"
+  | "denied"
+  | "unsupported";
 
 export function getNotificationPermission(): NotificationPermission {
   if (typeof window === "undefined" || !("Notification" in window)) {
@@ -34,7 +43,10 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
   if (typeof window === "undefined" || !("Notification" in window)) {
     return "unsupported";
   }
-  if (Notification.permission === "granted" || Notification.permission === "denied") {
+  if (
+    Notification.permission === "granted" ||
+    Notification.permission === "denied"
+  ) {
     return Notification.permission;
   }
   const result = await Notification.requestPermission();
@@ -67,11 +79,12 @@ function setSeen(key: string, id: string) {
  * The current user is passed in so we can read their prefs and skip
  * self-authored content.
  */
-export function startNotificationListener(currentEmail: string): () => void {
+export async function startNotificationListener(
+  currentEmail: string,
+): Promise<() => void> {
   // Seed the "last seen" markers so we don't notify retroactively for
   // everything already in the feed when the user first signs in.
-  const posts = listPosts();
-  const messages = listMessages();
+  const [posts, messages] = await Promise.all([listPosts(), listMessages()]);
   if (posts.length && !getSeen(SEEN_KEYS.posts)) {
     setSeen(SEEN_KEYS.posts, posts[0].id);
   }
@@ -79,10 +92,10 @@ export function startNotificationListener(currentEmail: string): () => void {
     setSeen(SEEN_KEYS.messages, messages[messages.length - 1].id);
   }
 
-  const unsubPosts = subscribe("posts", () => {
-    const prefs = getNotificationPrefs(currentEmail);
+  const unsubPosts = subscribe("posts", async () => {
+    const prefs = await getNotificationPrefs(currentEmail);
     if (!prefs.new_posts) return;
-    const all = listPosts(); // sorted newest-first
+    const all = await listPosts(); // sorted newest-first
     const seenId = getSeen(SEEN_KEYS.posts);
     const fresh = [];
     for (const p of all) {
@@ -97,10 +110,10 @@ export function startNotificationListener(currentEmail: string): () => void {
     }
   });
 
-  const unsubMessages = subscribe("messages", () => {
-    const prefs = getNotificationPrefs(currentEmail);
+  const unsubMessages = subscribe("messages", async () => {
+    const prefs = await getNotificationPrefs(currentEmail);
     if (!prefs.new_messages) return;
-    const all = listMessages(); // sorted oldest-first
+    const all = await listMessages(); // sorted oldest-first
     const seenId = getSeen(SEEN_KEYS.messages);
     const seenIdx = seenId ? all.findIndex((m) => m.id === seenId) : -1;
     const fresh = all.slice(seenIdx + 1);

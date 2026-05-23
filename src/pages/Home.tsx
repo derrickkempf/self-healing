@@ -21,16 +21,36 @@ import type { GalleryImage, Post } from "../types";
  * via IntersectionObserver.
  */
 export default function Home() {
-  const [posts, setPosts] = useState<Post[]>(() => listPosts(10));
-  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>(() =>
-    listGalleryImages(),
-  );
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
 
-  useEffect(() => subscribe("posts", () => setPosts(listPosts(10))), []);
-  useEffect(
-    () => subscribe("gallery", () => setGalleryImages(listGalleryImages())),
-    [],
-  );
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const rows = await listPosts(10);
+      if (!cancelled) setPosts(rows);
+    }
+    load();
+    const unsub = subscribe("posts", load);
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const rows = await listGalleryImages();
+      if (!cancelled) setGalleryImages(rows);
+    }
+    load();
+    const unsub = subscribe("gallery", load);
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, []);
 
   return (
     <div className="min-h-screen flex flex-col">

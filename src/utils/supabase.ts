@@ -1,40 +1,29 @@
 /**
- * Mocked Supabase client.
+ * Supabase-backed data layer for posts, messages, profiles, gallery, and
+ * notification preferences.
  *
- * This file implements just enough of a Supabase-like surface area to power
- * the app locally without an actual backend. Everything is persisted to
- * `localStorage`, and "realtime" cross-tab updates are delivered via the
- * `storage` event.
+ * All functions return Promises. Realtime updates are delivered through
+ * Postgres change subscriptions on the shared `supabase` client.
  *
- * When you are ready to swap in real Supabase, replace this file with the
- * official client (`@supabase/supabase-js`) and update the call sites in
- * `auth.ts`, `Dashboard.tsx`, `PostFeed.tsx`, and `Chat.tsx` accordingly.
- * The function signatures here intentionally mirror typical Supabase usage
- * (select / insert / update / subscribe) to keep the migration small.
+ * Auth (sign-in, sign-out, current session) lives in `./auth.ts` and uses
+ * Supabase Auth's built-in email OTP flow.
  */
 
 import type {
-  AuthCode,
   GalleryImage,
   Message,
   NotificationPrefs,
   Post,
   Profile,
-  User,
 } from "../types";
+import { supabase } from "./supabaseClient";
 
-const KEYS = {
-  users: "sh.users",
-  auth_codes: "sh.auth_codes",
-  posts: "sh.posts",
-  messages: "sh.messages",
-  session: "sh.session",
-  profiles: "sh.profiles",
-  prefs: "sh.notification_prefs",
-  gallery: "sh.gallery",
-} as const;
-
-// ---------- env / whitelist ----------
+// ---------- env / whitelist (client-side UX gate) ----------
+//
+// The DB also enforces the whitelist via the `is_whitelisted()` policy
+// predicate. This client list is just to give the user a fast "you're not
+// authorized" message before we ask Supabase to email them a code they
+// could never use.
 
 const FALLBACK_WHITELIST = ["dk@derrickkempf.com"];
 
@@ -52,196 +41,72 @@ export function isWhitelisted(email: string): boolean {
   return getWhitelist().includes(email.trim().toLowerCase());
 }
 
-// ---------- storage helpers ----------
-
-function read<T>(key: string): T[] {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function write<T>(key: string, rows: T[]): void {
-  localStorage.setItem(key, JSON.stringify(rows));
-}
-
-function uuid(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
-    return crypto.randomUUID();
-  }
-  // RFC4122-ish fallback
-  return "xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
-
-// ---------- seed (one-time) ----------
-
-function seedIfEmpty(): void {
-  if (read<Post>(KEYS.posts).length === 0) {
-    const now = Date.now();
-    const seed: Post[] = [
-      {
-        id: uuid(),
-        title: "Prototype run #3",
-        content:
-          "First batch off the new line. Cure time down to 41 minutes — surface finish is noticeably cleaner.",
-        image_url: null,
-        created_at: new Date(now - 1000 * 60 * 60 * 24 * 2).toISOString(),
-        author_email: "dk@derrickkempf.com",
-      },
-      {
-        id: uuid(),
-        title: "Material sourcing locked",
-        content:
-          "Final supplier signed. Lead time of 11 days on the elastomer compound, two-week buffer on backing.",
-        image_url: null,
-        created_at: new Date(now - 1000 * 60 * 60 * 24 * 5).toISOString(),
-        author_email: "dk@derrickkempf.com",
-      },
-      {
-        id: uuid(),
-        title: "Kickoff",
-        content:
-          "Self-Healing Mats production tracker is live. Updates will land here as we go.",
-        image_url: null,
-        created_at: new Date(now - 1000 * 60 * 60 * 24 * 9).toISOString(),
-        author_email: "dk@derrickkempf.com",
-      },
-    ];
-    write(KEYS.posts, seed);
-  }
-}
-
-seedIfEmpty();
-
-// ---------- users ----------
-
-export function upsertUser(email: string): User {
-  const users = read<User>(KEYS.users);
-  const existing = users.find(
-    (u) => u.email.toLowerCase() === email.toLowerCase(),
-  );
-  if (existing) {
-    existing.last_login = new Date().toISOString();
-    existing.whitelisted = isWhitelisted(email);
-    write(KEYS.users, users);
-    return existing;
-  }
-  const created: User = {
-    id: uuid(),
-    email: email.toLowerCase(),
-    whitelisted: isWhitelisted(email),
-    last_login: new Date().toISOString(),
-  };
-  users.push(created);
-  write(KEYS.users, users);
-  return created;
-}
-
-// ---------- auth codes ----------
-
-const CODE_TTL_MS = 10 * 60 * 1000;
-
-export function issueAuthCode(email: string): AuthCode {
-  const code = String(Math.floor(100000 + Math.random() * 900000));
-  const now = new Date();
-  const expires = new Date(now.getTime() + CODE_TTL_MS);
-  const codes = read<AuthCode>(KEYS.auth_codes);
-  // Invalidate any prior unused codes for this email
-  for (const c of codes) {
-    if (c.email.toLowerCase() === email.toLowerCase() && !c.used) {
-      c.used = true;
-    }
-  }
-  const row: AuthCode = {
-    id: uuid(),
-    email: email.toLowerCase(),
-    code,
-    created_at: now.toISOString(),
-    expires_at: expires.toISOString(),
-    used: false,
-  };
-  codes.push(row);
-  write(KEYS.auth_codes, codes);
-  return row;
-}
-
-export function verifyAuthCode(email: string, code: string): boolean {
-  const codes = read<AuthCode>(KEYS.auth_codes);
-  const now = Date.now();
-  let ok = false;
-  for (const c of codes) {
-    if (
-      c.email.toLowerCase() === email.toLowerCase() &&
-      c.code === code.trim() &&
-      !c.used &&
-      new Date(c.expires_at).getTime() > now
-    ) {
-      c.used = true;
-      ok = true;
-      break;
-    }
-  }
-  write(KEYS.auth_codes, codes);
-  return ok;
-}
-
 // ---------- posts ----------
 
-export function listPosts(limit?: number): Post[] {
-  const rows = read<Post>(KEYS.posts).slice().sort((a, b) =>
-    b.created_at.localeCompare(a.created_at),
-  );
-  return typeof limit === "number" ? rows.slice(0, limit) : rows;
+export async function listPosts(limit?: number): Promise<Post[]> {
+  const q = supabase
+    .from("posts")
+    .select("*")
+    .order("created_at", { ascending: false });
+  const { data, error } = limit ? await q.limit(limit) : await q;
+  if (error) {
+    console.error("[supabase] listPosts", error);
+    return [];
+  }
+  return (data ?? []) as Post[];
 }
 
-export function createPost(input: {
+export async function createPost(input: {
   title: string;
   content: string;
   image_url: string | null;
   author_email: string;
-}): Post {
-  const post: Post = {
-    id: uuid(),
-    title: input.title,
-    content: input.content,
-    image_url: input.image_url,
-    created_at: new Date().toISOString(),
-    author_email: input.author_email,
-  };
-  const rows = read<Post>(KEYS.posts);
-  rows.push(post);
-  write(KEYS.posts, rows);
-  // Notify listeners in this tab as well — `storage` only fires in other tabs.
-  window.dispatchEvent(new CustomEvent("sh:posts"));
-  return post;
+}): Promise<Post | null> {
+  const { data, error } = await supabase
+    .from("posts")
+    .insert({
+      title: input.title,
+      content: input.content,
+      image_url: input.image_url,
+      author_email: input.author_email,
+    })
+    .select()
+    .single();
+  if (error) {
+    console.error("[supabase] createPost", error);
+    return null;
+  }
+  return data as Post;
 }
 
 // ---------- messages ----------
 
-export function listMessages(): Message[] {
-  return read<Message>(KEYS.messages).slice().sort((a, b) =>
-    a.created_at.localeCompare(b.created_at),
-  );
+export async function listMessages(): Promise<Message[]> {
+  const { data, error } = await supabase
+    .from("messages")
+    .select("*")
+    .order("created_at", { ascending: true });
+  if (error) {
+    console.error("[supabase] listMessages", error);
+    return [];
+  }
+  return (data ?? []) as Message[];
 }
 
-export function sendMessage(sender_email: string, content: string): Message {
-  const msg: Message = {
-    id: uuid(),
-    sender_email,
-    content,
-    created_at: new Date().toISOString(),
-  };
-  const rows = read<Message>(KEYS.messages);
-  rows.push(msg);
-  write(KEYS.messages, rows);
-  window.dispatchEvent(new CustomEvent("sh:messages"));
-  return msg;
+export async function sendMessage(
+  sender_email: string,
+  content: string,
+): Promise<Message | null> {
+  const { data, error } = await supabase
+    .from("messages")
+    .insert({ sender_email, content })
+    .select()
+    .single();
+  if (error) {
+    console.error("[supabase] sendMessage", error);
+    return null;
+  }
+  return data as Message;
 }
 
 // ---------- profiles ----------
@@ -257,90 +122,146 @@ function defaultProfile(email: string): Profile {
   };
 }
 
-export function getProfile(email: string): Profile {
-  const rows = read<Profile>(KEYS.profiles);
-  const existing = rows.find(
-    (p) => p.email.toLowerCase() === email.toLowerCase(),
-  );
-  return existing ?? defaultProfile(email.toLowerCase());
+export async function getProfile(email: string): Promise<Profile> {
+  const lower = email.toLowerCase();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("email", lower)
+    .maybeSingle();
+  if (error) {
+    console.error("[supabase] getProfile", error);
+    return defaultProfile(lower);
+  }
+  if (!data) return defaultProfile(lower);
+  return {
+    email: data.email,
+    display_name: data.display_name ?? "",
+    tagline: data.tagline ?? "",
+    avatar_url: data.avatar_url ?? null,
+    cover_url: data.cover_url ?? null,
+    links: Array.isArray(data.links) ? data.links : [],
+  };
 }
 
-export function saveProfile(profile: Profile): Profile {
-  const rows = read<Profile>(KEYS.profiles);
-  const idx = rows.findIndex(
-    (p) => p.email.toLowerCase() === profile.email.toLowerCase(),
-  );
+export async function saveProfile(profile: Profile): Promise<Profile> {
   const next: Profile = { ...profile, email: profile.email.toLowerCase() };
-  if (idx === -1) rows.push(next);
-  else rows[idx] = next;
-  write(KEYS.profiles, rows);
-  window.dispatchEvent(new CustomEvent("sh:profile"));
+  const { error } = await supabase
+    .from("profiles")
+    .upsert(
+      {
+        email: next.email,
+        display_name: next.display_name,
+        tagline: next.tagline,
+        avatar_url: next.avatar_url,
+        cover_url: next.cover_url,
+        links: next.links,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "email" },
+    );
+  if (error) console.error("[supabase] saveProfile", error);
   return next;
 }
 
 // ---------- gallery ----------
 
-export function listGalleryImages(): GalleryImage[] {
-  return read<GalleryImage>(KEYS.gallery)
-    .slice()
-    .sort((a, b) => a.position - b.position);
+export async function listGalleryImages(): Promise<GalleryImage[]> {
+  const { data, error } = await supabase
+    .from("gallery_images")
+    .select("*")
+    .order("position", { ascending: true });
+  if (error) {
+    console.error("[supabase] listGalleryImages", error);
+    return [];
+  }
+  return (data ?? []) as GalleryImage[];
 }
 
-export function addGalleryImage(input: {
+export async function addGalleryImage(input: {
   url: string;
   caption?: string;
-}): GalleryImage {
-  const rows = read<GalleryImage>(KEYS.gallery);
-  const maxPos = rows.reduce((m, r) => Math.max(m, r.position), -1);
-  const next: GalleryImage = {
-    id: uuid(),
-    url: input.url,
-    caption: (input.caption ?? "").trim(),
-    position: maxPos + 1,
-    created_at: new Date().toISOString(),
-  };
-  rows.push(next);
-  write(KEYS.gallery, rows);
-  window.dispatchEvent(new CustomEvent("sh:gallery"));
-  return next;
+}): Promise<GalleryImage | null> {
+  // Compute next position. Cheap: ask for the max in a single query.
+  const { data: maxRow } = await supabase
+    .from("gallery_images")
+    .select("position")
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextPos = (maxRow?.position ?? -1) + 1;
+
+  const { data, error } = await supabase
+    .from("gallery_images")
+    .insert({
+      url: input.url,
+      caption: (input.caption ?? "").trim(),
+      position: nextPos,
+    })
+    .select()
+    .single();
+  if (error) {
+    console.error("[supabase] addGalleryImage", error);
+    return null;
+  }
+  return data as GalleryImage;
 }
 
-export function removeGalleryImage(id: string): void {
-  const rows = read<GalleryImage>(KEYS.gallery).filter((r) => r.id !== id);
-  // Re-pack positions so they stay contiguous (0..n-1).
-  rows
-    .slice()
-    .sort((a, b) => a.position - b.position)
-    .forEach((r, i) => (r.position = i));
-  write(KEYS.gallery, rows);
-  window.dispatchEvent(new CustomEvent("sh:gallery"));
+export async function removeGalleryImage(id: string): Promise<void> {
+  const { error } = await supabase.from("gallery_images").delete().eq("id", id);
+  if (error) {
+    console.error("[supabase] removeGalleryImage", error);
+    return;
+  }
+  // Re-pack positions so the remaining rows are contiguous (0..n-1). Doing
+  // this in one round-trip per row keeps the code simple; the gallery is
+  // tiny so the cost is negligible.
+  const rows = await listGalleryImages();
+  for (let i = 0; i < rows.length; i++) {
+    if (rows[i].position !== i) {
+      await supabase
+        .from("gallery_images")
+        .update({ position: i })
+        .eq("id", rows[i].id);
+    }
+  }
 }
 
-export function updateGalleryCaption(id: string, caption: string): void {
-  const rows = read<GalleryImage>(KEYS.gallery);
-  const row = rows.find((r) => r.id === id);
-  if (!row) return;
-  row.caption = caption.trim();
-  write(KEYS.gallery, rows);
-  window.dispatchEvent(new CustomEvent("sh:gallery"));
+export async function updateGalleryCaption(
+  id: string,
+  caption: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from("gallery_images")
+    .update({ caption: caption.trim() })
+    .eq("id", id);
+  if (error) console.error("[supabase] updateGalleryCaption", error);
 }
 
 /** Move an image up (-1) or down (+1) one slot. Bounded at the edges. */
-export function moveGalleryImage(id: string, direction: -1 | 1): void {
-  const rows = read<GalleryImage>(KEYS.gallery)
-    .slice()
-    .sort((a, b) => a.position - b.position);
+export async function moveGalleryImage(
+  id: string,
+  direction: -1 | 1,
+): Promise<void> {
+  const rows = await listGalleryImages();
   const idx = rows.findIndex((r) => r.id === id);
   if (idx === -1) return;
   const swapIdx = idx + direction;
   if (swapIdx < 0 || swapIdx >= rows.length) return;
   const a = rows[idx];
   const b = rows[swapIdx];
-  const tmp = a.position;
-  a.position = b.position;
-  b.position = tmp;
-  write(KEYS.gallery, rows);
-  window.dispatchEvent(new CustomEvent("sh:gallery"));
+  // Swap positions via two updates. Not atomic — but the gallery is single
+  // operator and the realtime subscription will reconcile.
+  await Promise.all([
+    supabase
+      .from("gallery_images")
+      .update({ position: b.position })
+      .eq("id", a.id),
+    supabase
+      .from("gallery_images")
+      .update({ position: a.position })
+      .eq("id", b.id),
+  ]);
 }
 
 // ---------- notification prefs ----------
@@ -355,74 +276,78 @@ function defaultPrefs(email: string): NotificationPrefs {
   };
 }
 
-export function getNotificationPrefs(email: string): NotificationPrefs {
-  const rows = read<NotificationPrefs>(KEYS.prefs);
-  const existing = rows.find(
-    (p) => p.email.toLowerCase() === email.toLowerCase(),
-  );
-  return existing ?? defaultPrefs(email.toLowerCase());
+export async function getNotificationPrefs(
+  email: string,
+): Promise<NotificationPrefs> {
+  const lower = email.toLowerCase();
+  const { data, error } = await supabase
+    .from("notification_prefs")
+    .select("*")
+    .eq("email", lower)
+    .maybeSingle();
+  if (error) {
+    console.error("[supabase] getNotificationPrefs", error);
+    return defaultPrefs(lower);
+  }
+  if (!data) return defaultPrefs(lower);
+  return {
+    email: data.email,
+    new_posts: !!data.new_posts,
+    new_messages: !!data.new_messages,
+    ignore_own: !!data.ignore_own,
+    email_digest: (data.email_digest as NotificationPrefs["email_digest"]) ?? "off",
+  };
 }
 
-export function saveNotificationPrefs(
+export async function saveNotificationPrefs(
   prefs: NotificationPrefs,
-): NotificationPrefs {
-  const rows = read<NotificationPrefs>(KEYS.prefs);
-  const idx = rows.findIndex(
-    (p) => p.email.toLowerCase() === prefs.email.toLowerCase(),
-  );
+): Promise<NotificationPrefs> {
   const next: NotificationPrefs = {
     ...prefs,
     email: prefs.email.toLowerCase(),
   };
-  if (idx === -1) rows.push(next);
-  else rows[idx] = next;
-  write(KEYS.prefs, rows);
+  const { error } = await supabase
+    .from("notification_prefs")
+    .upsert(next, { onConflict: "email" });
+  if (error) console.error("[supabase] saveNotificationPrefs", error);
   return next;
 }
 
-// ---------- realtime-ish subscription ----------
+// ---------- realtime ----------
+//
+// Subscribes to inserts/updates/deletes on a table. The callback is
+// debounced through a microtask so several quick changes coalesce into
+// one re-fetch in the caller.
 
-type Channel = "posts" | "messages" | "gallery";
+type Channel = "posts" | "messages" | "gallery" | "profiles";
+
+const TABLE_FOR: Record<Channel, string> = {
+  posts: "posts",
+  messages: "messages",
+  gallery: "gallery_images",
+  profiles: "profiles",
+};
 
 export function subscribe(channel: Channel, cb: () => void): () => void {
-  const storageKey =
-    channel === "posts"
-      ? KEYS.posts
-      : channel === "messages"
-        ? KEYS.messages
-        : KEYS.gallery;
-  const eventName = `sh:${channel}`;
-  const onStorage = (e: StorageEvent) => {
-    if (e.key === storageKey) cb();
-  };
-  const onCustom = () => cb();
-  window.addEventListener("storage", onStorage);
-  window.addEventListener(eventName, onCustom as EventListener);
-  return () => {
-    window.removeEventListener("storage", onStorage);
-    window.removeEventListener(eventName, onCustom as EventListener);
-  };
-}
-
-// ---------- session ----------
-
-export function getSession(): { token: string; email: string } | null {
-  try {
-    const raw = localStorage.getItem(KEYS.session);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
+  const table = TABLE_FOR[channel];
+  let queued = false;
+  function fire() {
+    if (queued) return;
+    queued = true;
+    queueMicrotask(() => {
+      queued = false;
+      cb();
+    });
   }
-}
-
-export function setSession(email: string): void {
-  const token = uuid() + "." + uuid();
-  localStorage.setItem(
-    KEYS.session,
-    JSON.stringify({ token, email, issued_at: new Date().toISOString() }),
-  );
-}
-
-export function clearSession(): void {
-  localStorage.removeItem(KEYS.session);
+  const sub = supabase
+    .channel(`sh:${channel}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table },
+      fire,
+    )
+    .subscribe();
+  return () => {
+    supabase.removeChannel(sub);
+  };
 }

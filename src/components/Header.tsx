@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { getSession } from "../utils/auth";
+import { useAuth } from "../utils/useAuth";
 import { startNotificationListener } from "../utils/notifications";
-import { getProfile } from "../utils/supabase";
+import { getProfile, subscribe } from "../utils/supabase";
 
 interface Props {
   variant?: "public" | "private";
@@ -13,36 +13,47 @@ interface Props {
  * `private` shows the dashboard / chat / settings nav for signed-in users.
  */
 export default function Header({ variant = "public" }: Props) {
-  const session = getSession();
+  const { session } = useAuth();
 
   // Mount the notification listener once per signed-in page load. It reads
   // the user's prefs on each tick, so toggling them in Settings takes effect
   // immediately without re-subscribing.
   useEffect(() => {
     if (variant !== "private" || !session?.email) return;
-    return startNotificationListener(session.email);
+    let cleanup: (() => void) | null = null;
+    let cancelled = false;
+    startNotificationListener(session.email).then((fn) => {
+      if (cancelled) {
+        fn();
+        return;
+      }
+      cleanup = fn;
+    });
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
   }, [variant, session?.email]);
 
   // Show the user's display name (from Profile settings) in the nav. Refresh
   // when the profile changes so saving in Settings is reflected immediately.
-  const [profileLabel, setProfileLabel] = useState<string>(() => {
-    if (!session?.email) return "";
-    const p = getProfile(session.email);
-    return p.display_name || session.email;
-  });
+  const [profileLabel, setProfileLabel] = useState<string>("");
 
   useEffect(() => {
-    if (!session?.email) return;
-    const sync = () => {
-      const p = getProfile(session.email);
-      setProfileLabel(p.display_name || session.email);
-    };
-    sync();
-    window.addEventListener("sh:profile", sync);
-    window.addEventListener("storage", sync);
+    if (!session?.email) {
+      setProfileLabel("");
+      return;
+    }
+    let cancelled = false;
+    async function load() {
+      const p = await getProfile(session!.email);
+      if (!cancelled) setProfileLabel(p.display_name || session!.email);
+    }
+    load();
+    const unsub = subscribe("profiles", load);
     return () => {
-      window.removeEventListener("sh:profile", sync);
-      window.removeEventListener("storage", sync);
+      cancelled = true;
+      unsub();
     };
   }, [session?.email]);
 

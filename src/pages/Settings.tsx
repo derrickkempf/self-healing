@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Header from "../components/Header";
 import Reveal from "../components/Reveal";
-import { getSession, logout } from "../utils/auth";
+import { logout } from "../utils/auth";
+import { useAuth } from "../utils/useAuth";
 import {
   getNotificationPermission,
   requestNotificationPermission,
@@ -35,7 +36,7 @@ type Section = "profile" | "account" | "notifications" | "gallery";
  */
 export default function Settings() {
   const navigate = useNavigate();
-  const session = getSession();
+  const { session } = useAuth();
   const email = session?.email ?? "";
 
   const [params, setParams] = useSearchParams();
@@ -49,8 +50,8 @@ export default function Settings() {
     });
   }, [section, setParams]);
 
-  function handleLogout() {
-    logout();
+  async function handleLogout() {
+    await logout();
     navigate("/", { replace: true });
   }
 
@@ -118,9 +119,11 @@ export default function Settings() {
 
             {/* Panel */}
             <section className="p-5 md:p-10 min-h-[520px]">
-              {section === "profile" && <ProfilePanel email={email} />}
+              {section === "profile" && email && <ProfilePanel email={email} />}
               {section === "account" && <AccountPanel email={email} />}
-              {section === "notifications" && <NotificationsPanel email={email} />}
+              {section === "notifications" && email && (
+                <NotificationsPanel email={email} />
+              )}
               {section === "gallery" && <GalleryPanel />}
             </section>
           </div>
@@ -164,18 +167,29 @@ function SidebarItem({
 // ============================================================================
 
 function ProfilePanel({ email }: { email: string }) {
-  const [profile, setProfile] = useState<Profile>(() => getProfile(email));
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [saved, setSaved] = useState(false);
   const avatarRef = useRef<HTMLInputElement>(null);
   const coverRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    let cancelled = false;
+    getProfile(email).then((p) => {
+      if (!cancelled) setProfile(p);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [email]);
+
   function update<K extends keyof Profile>(key: K, value: Profile[K]) {
-    setProfile((p) => ({ ...p, [key]: value }));
+    setProfile((p) => (p ? { ...p, [key]: value } : p));
     setSaved(false);
   }
 
   function updateLink(idx: number, value: string) {
     setProfile((p) => {
+      if (!p) return p;
       const links = [...p.links];
       links[idx] = value;
       return { ...p, links };
@@ -184,10 +198,12 @@ function ProfilePanel({ email }: { email: string }) {
   }
 
   function addLink() {
+    if (!profile) return;
     update("links", [...profile.links, ""]);
   }
 
   function removeLink(idx: number) {
+    if (!profile) return;
     update(
       "links",
       profile.links.filter((_, i) => i !== idx),
@@ -203,14 +219,19 @@ function ProfilePanel({ email }: { email: string }) {
     else update("cover_url", dataUrl);
   }
 
-  function handleSave() {
-    saveProfile({
+  async function handleSave() {
+    if (!profile) return;
+    await saveProfile({
       ...profile,
       email,
       links: profile.links.map((l) => l.trim()).filter(Boolean),
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 2200);
+  }
+
+  if (!profile) {
+    return <p className="text-muted text-sm">Loading profile…</p>;
   }
 
   return (
@@ -399,19 +420,27 @@ function AccountPanel({ email }: { email: string }) {
 // ============================================================================
 
 function NotificationsPanel({ email }: { email: string }) {
-  const [prefs, setPrefs] = useState<NotificationPrefs>(() =>
-    getNotificationPrefs(email),
-  );
+  const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
   const [permission, setPermission] = useState<NotificationPermission>(() =>
     getNotificationPermission(),
   );
   const [saved, setSaved] = useState(false);
 
+  useEffect(() => {
+    let cancelled = false;
+    getNotificationPrefs(email).then((p) => {
+      if (!cancelled) setPrefs(p);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [email]);
+
   // Persist immediately on every toggle — that's the expected behavior for
   // notification panels and saves the user an explicit Save step.
-  function setAndSave(next: NotificationPrefs) {
+  async function setAndSave(next: NotificationPrefs) {
     setPrefs(next);
-    saveNotificationPrefs(next);
+    await saveNotificationPrefs(next);
     setSaved(true);
     setTimeout(() => setSaved(false), 1500);
   }
@@ -419,6 +448,10 @@ function NotificationsPanel({ email }: { email: string }) {
   async function handleEnableBrowser() {
     const result = await requestNotificationPermission();
     setPermission(result);
+  }
+
+  if (!prefs) {
+    return <p className="text-muted text-sm">Loading preferences…</p>;
   }
 
   return (
@@ -471,7 +504,8 @@ function NotificationsPanel({ email }: { email: string }) {
               onChange={(e) =>
                 setAndSave({
                   ...prefs,
-                  email_digest: e.target.value as NotificationPrefs["email_digest"],
+                  email_digest: e.target
+                    .value as NotificationPrefs["email_digest"],
                 })
               }
               className="border border-line bg-transparent px-3 py-2 text-[12px] uppercase tracking-[0.18em] cursor-pointer hover:border-white/60 transition"
@@ -546,14 +580,24 @@ function PermissionBanner({
 // ============================================================================
 
 function GalleryPanel() {
-  const [images, setImages] = useState<GalleryImage[]>(() =>
-    listGalleryImages(),
-  );
+  const [images, setImages] = useState<GalleryImage[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => subscribe("gallery", () => setImages(listGalleryImages())), []);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const rows = await listGalleryImages();
+      if (!cancelled) setImages(rows);
+    }
+    load();
+    const unsub = subscribe("gallery", load);
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, []);
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -570,7 +614,7 @@ function GalleryPanel() {
           continue;
         }
         const dataUrl = await fileToDataUrl(file);
-        addGalleryImage({ url: dataUrl, caption: "" });
+        await addGalleryImage({ url: dataUrl, caption: "" });
       }
     } finally {
       setUploading(false);
@@ -608,9 +652,7 @@ function GalleryPanel() {
         />
       </button>
 
-      {error && (
-        <p className="text-[12px] text-red-300/90 mb-6">{error}</p>
-      )}
+      {error && <p className="text-[12px] text-red-300/90 mb-6">{error}</p>}
 
       {images.length === 0 ? (
         <p className="text-muted text-[12px]">
@@ -648,9 +690,9 @@ function GalleryRow({
   // doesn't change caption, but a remove + add could).
   useEffect(() => setCaption(image.caption), [image.caption]);
 
-  function commitCaption() {
+  async function commitCaption() {
     if (caption === image.caption) return;
-    updateGalleryCaption(image.id, caption);
+    await updateGalleryCaption(image.id, caption);
     setSavedTick(true);
     setTimeout(() => setSavedTick(false), 1200);
   }
@@ -658,7 +700,11 @@ function GalleryRow({
   return (
     <li className="border border-line bg-[#0a0a0a]">
       <div className="aspect-square w-full overflow-hidden bg-black">
-        <img src={image.url} alt={image.caption} className="w-full h-full object-cover" />
+        <img
+          src={image.url}
+          alt={image.caption}
+          className="w-full h-full object-cover"
+        />
       </div>
       <div className="p-3 space-y-3">
         <input
@@ -696,9 +742,9 @@ function GalleryRow({
             )}
             <button
               type="button"
-              onClick={() => {
+              onClick={async () => {
                 if (confirm("Remove this image from the gallery?")) {
-                  removeGalleryImage(image.id);
+                  await removeGalleryImage(image.id);
                 }
               }}
               className="text-[10px] uppercase tracking-[0.18em] text-muted hover:text-white transition"
@@ -779,9 +825,7 @@ function Toggle({
         <span
           aria-hidden
           className={`absolute top-[2px] w-[18px] h-[18px] transition ${
-            checked
-              ? "left-[26px] bg-black"
-              : "left-[2px] bg-white/70"
+            checked ? "left-[26px] bg-black" : "left-[2px] bg-white/70"
           }`}
         />
       </button>
@@ -814,7 +858,14 @@ function SaveBar({ onSave, saved }: { onSave: () => void; saved: boolean }) {
 
 function IconUser() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
       <circle cx="12" cy="8" r="4" />
       <path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8" />
     </svg>
@@ -823,7 +874,14 @@ function IconUser() {
 
 function IconAt() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
       <circle cx="12" cy="12" r="4" />
       <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8" />
     </svg>
@@ -832,7 +890,14 @@ function IconAt() {
 
 function IconBell() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
       <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
       <path d="M10 21a2 2 0 0 0 4 0" />
     </svg>
@@ -841,7 +906,14 @@ function IconBell() {
 
 function IconGrid() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
       <rect x="3" y="3" width="7" height="7" />
       <rect x="14" y="3" width="7" height="7" />
       <rect x="3" y="14" width="7" height="7" />
@@ -852,7 +924,14 @@ function IconGrid() {
 
 function IconLogout() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+    >
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
       <path d="M16 17l5-5-5-5" />
       <path d="M21 12H9" />

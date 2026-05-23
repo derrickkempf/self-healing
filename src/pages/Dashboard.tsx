@@ -3,10 +3,10 @@ import Header from "../components/Header";
 import PostForm from "../components/PostForm";
 import PostFeed from "../components/PostFeed";
 import Reveal from "../components/Reveal";
-import { getSession } from "../utils/auth";
+import { useAuth } from "../utils/useAuth";
 
 export default function Dashboard() {
-  const session = getSession();
+  const { session } = useAuth();
   const [open, setOpen] = useState(false);
 
   return (
