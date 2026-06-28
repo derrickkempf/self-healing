@@ -56,15 +56,8 @@ export default function Settings() {
   }
 
   return (
-    <div
-      className="min-h-screen flex flex-col"
-      style={{
-        backgroundImage: "url('/grid.svg')",
-        backgroundRepeat: "repeat",
-        backgroundSize: "1920px 1396px",
-        backgroundPosition: "top center",
-      }}
-    >
+    <div className="min-h-screen flex flex-col">
+      {/* Grid background is handled by body (globals.css). */}
       <Header variant="private" />
 
       <main className="mx-auto max-w-5xl w-full px-4 md:px-10 py-8 md:py-12 flex-1">

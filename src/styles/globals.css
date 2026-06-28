@@ -18,11 +18,24 @@ body,
   min-height: 100%;
 }
 
+/* Grid background — pure CSS, fills the whole viewport on every page.
+   Two stacked linear-gradients draw the vertical and horizontal 1px lines.
+   Tile size is 60px; opacity is tuned to be visible-but-quiet against the
+   black canvas. `background-attachment: fixed` keeps the grid still while
+   the page scrolls, which makes it feel like a drafting surface rather
+   than a scrolling pattern. */
 body {
   font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   letter-spacing: 0.01em;
+  background-color: #000000;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 60px 60px;
+  background-position: 0 0;
+  background-attachment: fixed;
 }
 
 h1,

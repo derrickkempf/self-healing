@@ -56,16 +56,12 @@ export default function Home() {
     <div className="min-h-screen flex flex-col">
       <CornerNav />
 
-      {/* HERO / STORY — staggered entrance after intro / transition */}
+      {/* HERO / STORY — staggered entrance after intro / transition.
+          Grid background is now handled by the body (see globals.css) so
+          every page gets the same drafting-paper feel. */}
       <section
         id="story"
         className="relative w-full text-center scroll-mt-24"
-        style={{
-          backgroundImage: "url('/grid.svg')",
-          backgroundRepeat: "repeat",
-          backgroundSize: "1920px 1396px",
-          backgroundPosition: "top center",
-        }}
       >
         <div className="mx-auto max-w-5xl w-full px-6 md:px-10 pt-20 md:pt-32 pb-24 md:pb-40">
         <Reveal as="h1" delay={0.15} className="font-serif text-[14vw] md:text-[7rem] leading-[0.95] mb-10">

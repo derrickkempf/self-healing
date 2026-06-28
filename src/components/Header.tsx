@@ -73,9 +73,10 @@ export default function Header({ variant = "public" }: Props) {
         </Link>
 
         {variant === "public" ? (
-          <nav className="flex items-center gap-6 text-[11px] uppercase tracking-[0.18em] text-muted">
-            <span>Opepen Cutting Mats</span>
-          </nav>
+          // Public variant has no nav — the landing/login pages use CornerNav
+          // for a fixed-position logo instead. Kept here only as a no-op so
+          // any old references don't break.
+          <span />
         ) : (
           <nav className="flex items-center gap-5 text-[11px] uppercase tracking-[0.18em] text-muted">
             <NavLink

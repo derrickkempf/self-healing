@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import Header from "../components/Header";
+import CornerNav from "../components/CornerNav";
 import { requestCode, verifyCode } from "../utils/auth";
 import { useAuth } from "../utils/useAuth";
 
@@ -139,7 +139,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header variant="public" />
+      <CornerNav />
 
       <main className="flex-1 flex items-center justify-center px-6 py-16">
         <div className="w-full max-w-[440px]">
