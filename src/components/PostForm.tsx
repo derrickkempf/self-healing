@@ -95,7 +95,7 @@ export default function PostForm({ open, onClose, authorEmail, onCreated }: Prop
       }}
     >
       <div className="w-full max-w-xl mx-4 my-8 md:my-0 bg-ink border border-line">
-        <div className="flex items-center justify-between px-6 py-4 hairline">
+        <div className="flex items-center justify-between px-6 py-4">
           <h2 className="font-serif text-2xl">New Post</h2>
           <button
             type="button"

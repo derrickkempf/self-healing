@@ -12,9 +12,9 @@ html {
 
 /* Grid background — pure CSS, painted on <html> so it sits behind every
    other element on every page. Two stacked linear-gradients draw the
-   vertical and horizontal 1px lines. Tile size is 60px; opacity 0.09
-   reads as visible-but-quiet against the black canvas. Both <body> and
-   #root are kept transparent so the grid shows through unobstructed. */
+   vertical and horizontal 1px lines. Tile size is 30px (was 60); opacity
+   0.09 reads as visible-but-quiet against the black canvas. Both <body>
+   and #root are kept transparent so the grid shows through unobstructed. */
 html {
   color: #ffffff;
   min-height: 100%;
@@ -22,7 +22,7 @@ html {
   background-image:
     linear-gradient(to right, rgba(255, 255, 255, 0.09) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(255, 255, 255, 0.09) 1px, transparent 1px);
-  background-size: 60px 60px;
+  background-size: 30px 30px;
   background-position: 0 0;
   background-attachment: fixed;
 }

@@ -15,9 +15,6 @@ export default function Chat() {
           </p>
           <h1 className="font-serif text-3xl md:text-4xl">Chat</h1>
         </Reveal>
-        <Reveal delay={0.1}>
-          <div className="hairline mb-4" />
-        </Reveal>
         <Reveal delay={0.18} className="flex-1 flex flex-col">
           <ChatThread currentEmail={session?.email ?? "unknown"} />
         </Reveal>

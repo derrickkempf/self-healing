@@ -32,10 +32,6 @@ export default function Dashboard() {
           </button>
         </Reveal>
 
-        <Reveal delay={0.15}>
-          <div className="hairline mb-12" />
-        </Reveal>
-
         <PostFeed />
       </main>
 

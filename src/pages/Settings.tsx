@@ -63,7 +63,7 @@ export default function Settings() {
       <main className="mx-auto max-w-5xl w-full px-4 md:px-10 py-8 md:py-12 flex-1">
         <Reveal className="border border-line bg-black">
           {/* Top bar */}
-          <div className="flex items-center justify-between px-5 md:px-7 py-4 hairline">
+          <div className="flex items-center justify-between px-5 md:px-7 py-4">
             <p className="text-[11px] uppercase tracking-[0.22em]">Settings</p>
             <button
               type="button"
@@ -102,7 +102,7 @@ export default function Settings() {
                 onClick={() => setSection("gallery")}
                 icon={<IconGrid />}
               />
-              <div className="hidden md:block mt-6 mb-3 hairline" />
+              <div className="hidden md:block mt-6 mb-3" />
               <SidebarItem
                 label="Sign out"
                 onClick={handleLogout}

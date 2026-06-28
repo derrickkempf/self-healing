@@ -11,7 +11,10 @@ import type { GalleryImage, Post } from "../types";
  *
  *   Header
  *   Hero       — staggered fade-up reveals on load (post intro)
- *   Progress   — each post reveals as it enters the viewport
+ *   Progress   — vertical timeline; each post is a marker on a connecting track.
+ *                Realtime-driven: subscribe('posts') refetches whenever a new
+ *                update is published from /dashboard, so the public page
+ *                always reflects what the admin has posted.
  *   Gallery    — each tile reveals as it enters the viewport
  *   Footer     — soft fade-up at the bottom of the page
  *
@@ -64,31 +67,44 @@ export default function Home() {
         className="relative w-full text-center scroll-mt-24"
       >
         <div className="mx-auto max-w-5xl w-full px-6 md:px-10 pt-20 md:pt-32 pb-24 md:pb-40">
-        <Reveal as="h1" delay={0.15} className="font-serif text-[14vw] md:text-[7rem] leading-[0.95] mb-10">
-          Self-Healing
-          <br />
-          <span className="italic text-sub">Mats.</span>
-        </Reveal>
-        <Reveal as="p" delay={0.3} className="max-w-xl mx-auto text-sub text-[15px] md:text-base leading-relaxed mb-12">
-          A living journal of the materials, methods and milestones behind
-          Self-Healing — a small-batch elastomer mat designed to mend itself.
-          Updates land here as the line moves.
-        </Reveal>
-        <Reveal delay={0.45}>
-          <Link
-            to="/login"
-            className="inline-block border border-white px-6 py-3 text-xs uppercase tracking-[0.2em] hover:bg-white hover:text-black transition"
+          <Reveal
+            as="h1"
+            delay={0.15}
+            className="font-serif text-[14vw] md:text-[7rem] leading-[0.95] mb-10"
           >
-            Access Insights →
-          </Link>
-        </Reveal>
+            Self-Healing
+            <br />
+            <span className="italic text-sub">Mats.</span>
+          </Reveal>
+          <Reveal
+            as="p"
+            delay={0.3}
+            className="max-w-xl mx-auto text-sub text-[15px] md:text-base leading-relaxed mb-12"
+          >
+            A living journal of the materials, methods and milestones behind
+            Self-Healing — a small-batch elastomer mat designed to mend itself.
+            Updates land here as the line moves.
+          </Reveal>
+          <Reveal delay={0.45}>
+            <Link
+              to="/login"
+              className="inline-block border border-white px-6 py-3 text-xs uppercase tracking-[0.2em] hover:bg-white hover:text-black transition"
+            >
+              Access Insights →
+            </Link>
+          </Reveal>
         </div>
       </section>
 
-      <div className="hairline" />
-
-      {/* TIMELINE / FEED */}
-      <section id="progress" className="mx-auto max-w-5xl w-full px-6 md:px-10 py-20 md:py-28 scroll-mt-24">
+      {/* TIMELINE / FEED — progress-bar style. Each post is a marker on a
+          continuous vertical track. The track is drawn per-list-item as a
+          line that runs from this dot down into the next item's space, so
+          the connection feels physical even when there are big gaps between
+          posts. */}
+      <section
+        id="progress"
+        className="mx-auto max-w-5xl w-full px-6 md:px-10 py-20 md:py-28 scroll-mt-24"
+      >
         <Reveal className="flex items-baseline justify-between mb-12">
           <h2 className="font-serif text-3xl md:text-5xl">Progress</h2>
           <span className="text-[11px] uppercase tracking-[0.18em] text-muted">
@@ -99,44 +115,68 @@ export default function Home() {
         {posts.length === 0 ? (
           <p className="text-muted text-sm">No updates yet.</p>
         ) : (
-          <ol className="space-y-12">
-            {posts.map((p, i) => (
-              <Reveal
-                as="li"
-                key={p.id}
-                /* small per-item stagger for the first few which may
-                   be in the viewport together on initial load */
-                delay={i < 3 ? i * 0.08 : 0}
-                className="grid md:grid-cols-[140px_1fr] gap-4 md:gap-10"
-              >
-                <div className="text-[11px] uppercase tracking-[0.18em] text-muted pt-2">
-                  {formatDate(p.created_at)}
-                </div>
-                <article>
-                  <h3 className="font-serif text-2xl md:text-3xl mb-3">
-                    {p.title}
-                  </h3>
-                  <p className="text-sub text-[14px] leading-relaxed max-w-2xl whitespace-pre-wrap">
-                    {p.content}
-                  </p>
-                  {p.image_url && (
-                    <img
-                      src={p.image_url}
-                      alt={p.title}
-                      className="mt-6 w-full max-w-xl border border-line"
+          <ol className="relative">
+            {posts.map((p, i) => {
+              const isLast = i === posts.length - 1;
+              return (
+                <Reveal
+                  as="li"
+                  key={p.id}
+                  /* small per-item stagger for the first few which may
+                     be in the viewport together on initial load */
+                  delay={i < 3 ? i * 0.08 : 0}
+                  className={`relative pl-10 md:pl-14 ${isLast ? "" : "pb-12"}`}
+                >
+                  {/* Connector line — extends from this dot's center down
+                      past this li and into the next li's top padding to
+                      reach the next dot. Skipped on the last item. */}
+                  {!isLast && (
+                    <span
+                      aria-hidden
+                      className="absolute left-[7px] top-[19px] bottom-[-12px] w-px bg-white/25"
                     />
                   )}
-                </article>
-              </Reveal>
-            ))}
+
+                  {/* Marker dot — concentric: thin outer ring + filled
+                      center. Layered above the connector line so it
+                      visually "stops" the track at this post. */}
+                  <span
+                    aria-hidden
+                    className="absolute left-0 top-3 z-10 flex items-center justify-center w-[15px] h-[15px] rounded-full bg-black border border-white/60"
+                  >
+                    <span className="w-[7px] h-[7px] rounded-full bg-white" />
+                  </span>
+
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted mb-3">
+                    {formatDate(p.created_at)}
+                  </p>
+                  <article>
+                    <h3 className="font-serif text-2xl md:text-3xl mb-3">
+                      {p.title}
+                    </h3>
+                    <p className="text-sub text-[14px] leading-relaxed max-w-2xl whitespace-pre-wrap">
+                      {p.content}
+                    </p>
+                    {p.image_url && (
+                      <img
+                        src={p.image_url}
+                        alt={p.title}
+                        className="mt-6 w-full max-w-xl border border-line"
+                      />
+                    )}
+                  </article>
+                </Reveal>
+              );
+            })}
           </ol>
         )}
       </section>
 
-      <div className="hairline" />
-
       {/* GALLERY */}
-      <section id="gallery" className="mx-auto max-w-5xl w-full px-6 md:px-10 py-20 md:py-28 scroll-mt-24">
+      <section
+        id="gallery"
+        className="mx-auto max-w-5xl w-full px-6 md:px-10 py-20 md:py-28 scroll-mt-24"
+      >
         <Reveal className="flex items-baseline justify-between mb-12">
           <h2 className="font-serif text-3xl md:text-5xl">Gallery</h2>
           <span className="text-[11px] uppercase tracking-[0.18em] text-muted">
@@ -167,8 +207,6 @@ export default function Home() {
         )}
       </section>
 
-      <div className="hairline" />
-
       {/* FAQ */}
       <section className="mx-auto max-w-5xl w-full px-6 md:px-10 py-20 md:py-28">
         <Reveal className="mb-10 md:mb-14">
@@ -178,8 +216,10 @@ export default function Home() {
       </section>
 
       {/* FOOTER */}
-      <div className="hairline" />
-      <Reveal as="footer" className="mx-auto max-w-5xl w-full px-6 md:px-10 py-10 pb-24 md:pb-28 flex flex-col md:flex-row gap-4 md:gap-0 md:items-center md:justify-between">
+      <Reveal
+        as="footer"
+        className="mx-auto max-w-5xl w-full px-6 md:px-10 py-10 pb-24 md:pb-28 flex flex-col md:flex-row gap-4 md:gap-0 md:items-center md:justify-between"
+      >
         <p className="text-[11px] uppercase tracking-[0.18em] text-muted">
           © {new Date().getFullYear()} · Self-Healing Mats
         </p>

@@ -106,7 +106,6 @@ export default function Header({ variant = "public" }: Props) {
           </nav>
         )}
       </div>
-      <div className="hairline" />
     </header>
   );
 }
