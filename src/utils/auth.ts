@@ -69,20 +69,36 @@ export async function requestCode(
     return { ok: true, devCode: code };
   }
 
-  const { error } = await supabase.auth.signInWithOtp({
-    email: normalized,
-    options: {
-      // We don't want Supabase to auto-create users we haven't whitelisted
-      // server-side. If the row doesn't exist in `whitelist` the DB policies
-      // will block writes anyway, but blocking sign-up here is a cleaner UX.
-      shouldCreateUser: true,
-    },
-  });
-  if (error) {
-    console.error("[auth] signInWithOtp", error);
+  // Wrap in try/catch so an unexpected throw from the SDK (network failure,
+  // CORS misconfig, etc.) still surfaces a useful message in the console
+  // instead of an unhandled promise rejection.
+  try {
+    console.info("[auth] signInWithOtp request → ", normalized);
+    const { data, error } = await supabase.auth.signInWithOtp({
+      email: normalized,
+      options: {
+        // We don't want Supabase to auto-create users we haven't whitelisted
+        // server-side. If the row doesn't exist in `whitelist` the DB policies
+        // will block writes anyway, but blocking sign-up here is a cleaner UX.
+        shouldCreateUser: true,
+      },
+    });
+    if (error) {
+      // Log the full error object plus the bits people actually look for.
+      console.error(
+        "[auth] signInWithOtp FAILED:",
+        error.message,
+        "status=" + (error as { status?: number }).status,
+        error,
+      );
+      return { ok: false, reason: "send_failed" };
+    }
+    console.info("[auth] signInWithOtp OK", data);
+    return { ok: true };
+  } catch (err) {
+    console.error("[auth] signInWithOtp THREW:", err);
     return { ok: false, reason: "send_failed" };
   }
-  return { ok: true };
 }
 
 export async function verifyCode(
