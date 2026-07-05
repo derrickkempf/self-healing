@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import CornerNav from "../components/CornerNav";
+import SiteChrome from "../components/SiteChrome";
 import { requestCode, verifyCode } from "../utils/auth";
 import { useAuth } from "../utils/useAuth";
 
@@ -138,10 +138,8 @@ export default function Login() {
   }, [loading, session, navigate, redirectTo]);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <CornerNav />
-
-      <main className="flex-1 flex items-center justify-center px-6 py-16">
+    <SiteChrome>
+      <main className="min-h-screen flex items-center justify-center px-6 py-24">
         <div className="w-full max-w-[440px]">
           {step === "email" ? (
             <form onSubmit={handleRequestCode} noValidate>
@@ -261,6 +259,6 @@ export default function Login() {
           )}
         </div>
       </main>
-    </div>
+    </SiteChrome>
   );
 }

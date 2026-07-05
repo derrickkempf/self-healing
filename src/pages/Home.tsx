@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import CornerNav from "../components/CornerNav";
+import SiteChrome from "../components/SiteChrome";
 import Reveal from "../components/Reveal";
 import FAQ from "../components/FAQ";
 import { listGalleryImages, listPosts, subscribe } from "../utils/supabase";
@@ -56,15 +56,15 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <CornerNav />
-
+    <SiteChrome>
       {/* HERO / STORY — staggered entrance after intro / transition.
-          Grid background is now handled by the body (see globals.css) so
-          every page gets the same drafting-paper feel. */}
+          Grid background is handled by <html> (see globals.css) so
+          every page gets the same drafting-paper feel. Extra top
+          padding leaves room for the fixed logo/nav; bottom padding
+          leaves room for the corner footer. */}
       <section
         id="story"
-        className="relative w-full text-center scroll-mt-24"
+        className="relative w-full text-center scroll-mt-24 pt-[calc(var(--cell)*6)]"
       >
         <div className="mx-auto max-w-5xl w-full px-6 md:px-10 pt-20 md:pt-32 pb-24 md:pb-40">
           <Reveal
@@ -215,22 +215,11 @@ export default function Home() {
         <FAQ />
       </section>
 
-      {/* FOOTER */}
-      <Reveal
-        as="footer"
-        className="mx-auto max-w-5xl w-full px-6 md:px-10 py-10 pb-24 md:pb-28 flex flex-col md:flex-row gap-4 md:gap-0 md:items-center md:justify-between"
-      >
-        <p className="text-[11px] uppercase tracking-[0.18em] text-muted">
-          © {new Date().getFullYear()} · Self-Healing Mats
-        </p>
-        <Link
-          to="/login"
-          className="text-[11px] uppercase tracking-[0.18em] text-muted hover:text-white transition"
-        >
-          Collaborators →
-        </Link>
-      </Reveal>
-    </div>
+      {/* Trailing spacer so long-form content clears the fixed corner
+          footer at the bottom-right of the frame. Sized to the corner
+          footer's approximate height. */}
+      <div style={{ height: "calc(var(--cell) * 12)" }} />
+    </SiteChrome>
   );
 }
 
