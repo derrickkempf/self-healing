@@ -59,13 +59,17 @@ export default function Home() {
 
   return (
     <SiteChrome variant="public">
-      {/* Desktop grid: three fixed-width columns, each scrolls independently.
-          Tablet/mobile: stacks vertically and the page scrolls as a whole. */}
+      {/* Column direction flipped to RTL per the user request: About is now
+          the visual-left column on desktop, Gallery is on the right.
+          Reading order also flows right-to-left, so a visitor's eye lands
+          on the primary intro (About) first — mirroring the site's
+          overall top-right anchor. On tablet/mobile the columns stack in
+          reverse source order (Gallery → Process → About, top to bottom)
+          via `flex-col-reverse` at the sub-xl breakpoints. */}
       <div
         className="
-          grid gap-6 md:gap-8 xl:gap-10
-          grid-cols-1
-          xl:grid-cols-3
+          flex flex-col-reverse gap-6
+          xl:grid xl:grid-cols-3 xl:gap-10
         "
         style={{
           paddingLeft: "var(--cell)",
@@ -73,16 +77,16 @@ export default function Home() {
           paddingBottom: "calc(var(--cell) * 7)",
         }}
       >
-        <Column id="gallery" label="Gallery">
-          <GalleryContent images={galleryImages} />
+        <Column id="about" label="About">
+          <AboutContent />
         </Column>
 
         <Column id="process" label="Process">
           <ProcessContent posts={posts} />
         </Column>
 
-        <Column id="about" label="About">
-          <AboutContent />
+        <Column id="gallery" label="Gallery">
+          <GalleryContent images={galleryImages} />
         </Column>
       </div>
     </SiteChrome>

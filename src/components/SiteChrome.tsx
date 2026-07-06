@@ -268,6 +268,7 @@ const PUBLIC_NAV: NavLinkItem[] = [
   { kind: "anchor", label: "About", href: "#about" },
   { kind: "anchor", label: "Process", href: "#process" },
   { kind: "anchor", label: "Gallery", href: "#gallery" },
+  { kind: "route", label: "Shop", to: "/shop" },
 ];
 
 const PRIVATE_NAV: NavLinkItem[] = [
