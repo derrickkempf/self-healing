@@ -66,16 +66,17 @@ export default function PostForm({ open, onClose, authorEmail, onCreated }: Prop
       return;
     }
     setSubmitting(true);
-    const created = await createPost({
+    const { post, error: err } = await createPost({
       title: title.trim(),
       content: content.trim(),
       image_url: imageUrl,
       author_email: authorEmail,
     });
     setSubmitting(false);
-    if (!created) {
+    if (!post) {
       setError(
-        "Couldn't save the post. Check your connection and try again.",
+        err ??
+          "Couldn't save the post. Check the browser console for details.",
       );
       return;
     }

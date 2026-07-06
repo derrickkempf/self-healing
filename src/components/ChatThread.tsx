@@ -101,7 +101,12 @@ export default function ChatThread({ currentEmail }: Props) {
     const text = draft.trim();
     if (!text) return;
     setDraft(""); // optimistic clear
-    await sendMessage(currentEmail, text);
+    const { error } = await sendMessage(currentEmail, text);
+    if (error) {
+      // put the message back so the user can retry
+      setDraft(text);
+      console.warn("[chat] send failed:", error);
+    }
   }
 
   const groups = useMemo(() => groupMessages(messages), [messages]);

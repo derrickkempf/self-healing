@@ -225,6 +225,7 @@ export function MessagingContent({ currentEmail }: { currentEmail: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [draft, setDraft] = useState("");
+  const [sendError, setSendError] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -269,7 +270,15 @@ export function MessagingContent({ currentEmail }: { currentEmail: string }) {
     const text = draft.trim();
     if (!text) return;
     setDraft("");
-    await sendMessage(currentEmail, text);
+    const { error } = await sendMessage(currentEmail, text);
+    if (error) {
+      // Restore the draft so the user can retry without retyping, and
+      // surface the exact reason above the composer.
+      setDraft(text);
+      setSendError(error);
+    } else {
+      setSendError(null);
+    }
   }
 
   return (
@@ -333,6 +342,11 @@ export function MessagingContent({ currentEmail }: { currentEmail: string }) {
         )}
       </div>
 
+      {sendError && (
+        <p className="text-[12px] text-red-300/90 mb-2 leading-relaxed">
+          {sendError}
+        </p>
+      )}
       <form onSubmit={handleSend} className="flex gap-3">
         <input
           value={draft}
@@ -421,7 +435,7 @@ export function NewPostContent({
       return;
     }
     setSubmitting(true);
-    const created = await createPost({
+    const { post, error: err } = await createPost({
       title: tag, // The tag doubles as the title so ProgressContent can
       // derive the pill from it without a schema migration.
       content: content.trim(),
@@ -429,9 +443,10 @@ export function NewPostContent({
       author_email: authorEmail,
     });
     setSubmitting(false);
-    if (!created) {
+    if (!post) {
       setError(
-        "Couldn't save the post. Check your connection and try again.",
+        err ??
+          "Couldn't save the post. Check the browser console for the exact error.",
       );
       return;
     }

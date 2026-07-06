@@ -41,6 +41,37 @@ export function isWhitelisted(email: string): boolean {
   return getWhitelist().includes(email.trim().toLowerCase());
 }
 
+/**
+ * Turn a Supabase Postgres error into a message a human can act on.
+ * Special-cases the most common failure modes we've seen — RLS,
+ * auth, and network — so the UI can show "signed out" vs "not
+ * authorized" vs "database schema not applied" instead of a generic
+ * "check your connection".
+ */
+function formatSupabaseError(error: {
+  code?: string;
+  message?: string;
+  details?: string | null;
+  hint?: string | null;
+}): string {
+  const code = error.code ?? "";
+  const msg = error.message ?? "";
+  // RLS policy violation — most common: is_whitelisted() returning false.
+  if (code === "42501" || /row-level security/i.test(msg)) {
+    return "Blocked by database policy. Your account isn't on the whitelist, or the SECURITY DEFINER fix hasn't been run in Supabase yet.";
+  }
+  // Table doesn't exist — schema.sql wasn't run.
+  if (code === "42P01" || /does not exist/i.test(msg)) {
+    return "Database table missing. Run supabase/schema.sql in the Supabase SQL editor.";
+  }
+  // Not signed in.
+  if (/JWT|token|invalid api key/i.test(msg)) {
+    return "You're signed out or the API key is wrong. Sign in again.";
+  }
+  if (msg) return msg;
+  return "Unknown Supabase error. Check the browser console for details.";
+}
+
 // ---------- posts ----------
 
 export async function listPosts(limit?: number): Promise<Post[]> {
@@ -61,7 +92,7 @@ export async function createPost(input: {
   content: string;
   image_url: string | null;
   author_email: string;
-}): Promise<Post | null> {
+}): Promise<{ post: Post | null; error: string | null }> {
   const { data, error } = await supabase
     .from("posts")
     .insert({
@@ -73,10 +104,17 @@ export async function createPost(input: {
     .select()
     .single();
   if (error) {
-    console.error("[supabase] createPost", error);
-    return null;
+    // Log everything we can see about the failure — code, message, details,
+    // hint, and the raw object — so the browser console shows the actual
+    // RLS/auth cause instead of a generic "Couldn't save the post".
+    console.error(
+      "[supabase] createPost FAILED",
+      { code: error.code, message: error.message, details: error.details, hint: error.hint },
+      error,
+    );
+    return { post: null, error: formatSupabaseError(error) };
   }
-  return data as Post;
+  return { post: data as Post, error: null };
 }
 
 // ---------- messages ----------
@@ -96,17 +134,21 @@ export async function listMessages(): Promise<Message[]> {
 export async function sendMessage(
   sender_email: string,
   content: string,
-): Promise<Message | null> {
+): Promise<{ message: Message | null; error: string | null }> {
   const { data, error } = await supabase
     .from("messages")
     .insert({ sender_email, content })
     .select()
     .single();
   if (error) {
-    console.error("[supabase] sendMessage", error);
-    return null;
+    console.error(
+      "[supabase] sendMessage FAILED",
+      { code: error.code, message: error.message, details: error.details, hint: error.hint },
+      error,
+    );
+    return { message: null, error: formatSupabaseError(error) };
   }
-  return data as Message;
+  return { message: data as Message, error: null };
 }
 
 // ---------- profiles ----------
