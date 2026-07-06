@@ -26,8 +26,18 @@ insert into public.whitelist (email) values ('dk@derrickkempf.com')
   on conflict (email) do nothing;
 
 -- Convenience predicate used in policies below.
+--
+-- IMPORTANT: SECURITY DEFINER so the function runs with owner privileges
+-- and can read from the whitelist table even though whitelist has RLS on
+-- with no client-select policy. Without this the function silently returns
+-- false for every authenticated user and every write policy fails.
+--
+-- `set search_path = public` locks the schema resolution to prevent an
+-- attacker from shadowing `whitelist` with their own table.
 create or replace function public.is_whitelisted() returns boolean
   language sql stable
+  security definer
+  set search_path = public
 as $$
   select exists (
     select 1 from public.whitelist

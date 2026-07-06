@@ -266,14 +266,16 @@ type NavLinkItem =
 const PUBLIC_NAV: NavLinkItem[] = [
   { kind: "route", label: "Home", to: "/" },
   { kind: "anchor", label: "About", href: "#about" },
-  { kind: "anchor", label: "Process", href: "#process" },
+  { kind: "anchor", label: "Progress", href: "#progress" },
   { kind: "anchor", label: "Gallery", href: "#gallery" },
-  { kind: "route", label: "Shop", to: "/shop" },
 ];
 
 const PRIVATE_NAV: NavLinkItem[] = [
-  { kind: "route", label: "Feed", to: "/dashboard" },
-  { kind: "route", label: "Chat", to: "/chat" },
+  { kind: "route", label: "Home", to: "/dashboard" },
+  { kind: "anchor", label: "About", href: "#about" },
+  { kind: "anchor", label: "Progress", href: "#progress" },
+  { kind: "anchor", label: "Gallery", href: "#gallery" },
+  { kind: "anchor", label: "Messaging", href: "#messaging" },
   { kind: "route", label: "Settings", to: "/settings" },
 ];
 
@@ -287,36 +289,38 @@ function NavOverlay({
 }: NavVariantProps & { onClose: () => void }) {
   const items = variant === "public" ? PUBLIC_NAV : PRIVATE_NAV;
   const linkClass =
-    "font-serif text-4xl md:text-5xl text-white/85 hover:text-white transition-colors";
+    "font-serif text-5xl text-white/90 hover:text-white transition-colors uppercase leading-none";
+  const secondaryClass =
+    "uppercase tracking-[0.28em] text-[11px] text-white/60 hover:text-white transition";
 
   return (
     <div
       role="dialog"
       aria-modal="true"
       aria-label="Menu"
-      className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-sm flex flex-col"
+      className="fixed inset-0 z-[60] bg-black flex flex-col"
     >
       <button
         type="button"
         onClick={onClose}
         aria-label="Close menu"
-        className="absolute top-4 right-4 md:top-6 md:right-6 p-2 text-white/70 hover:text-white transition"
+        className="absolute top-2 left-1/2 -translate-x-1/2 p-2 text-white/70 hover:text-white transition md:left-2 md:translate-x-0"
       >
         <svg
-          width="28"
-          height="28"
-          viewBox="0 0 28 28"
+          width="24"
+          height="14"
+          viewBox="0 0 24 14"
           fill="none"
           stroke="currentColor"
           strokeWidth="1.5"
           aria-hidden
         >
-          <line x1="6" y1="6" x2="22" y2="22" />
-          <line x1="22" y1="6" x2="6" y2="22" />
+          <line x1="2" y1="4" x2="22" y2="4" />
+          <line x1="2" y1="10" x2="22" y2="10" />
         </svg>
       </button>
 
-      <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6">
+      <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6">
         {items.map((item) => {
           if (item.kind === "route") {
             return (
@@ -341,6 +345,20 @@ function NavOverlay({
             </a>
           );
         })}
+
+        {/* Secondary auth action — LOGIN for public visitors, mirroring the
+            mobile drawer in the design mockup. Signed-in users see LOGOUT. */}
+        <div style={{ marginTop: "var(--cell)" }}>
+          {variant === "public" ? (
+            <Link to="/login" onClick={onClose} className={secondaryClass}>
+              Login
+            </Link>
+          ) : (
+            <Link to="/settings" onClick={onClose} className={secondaryClass}>
+              Settings
+            </Link>
+          )}
+        </div>
       </div>
     </div>
   );
