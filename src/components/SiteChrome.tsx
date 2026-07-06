@@ -1,48 +1,58 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 
 /**
- * SiteChrome — the framed public shell.
+ * SiteChrome — the page shell.
  *
- *   ┌──────────────────────────────────────────────────┐   ← 32px frame inset
- *   │ NAV                                     [LOGO]  │      on tablet+, none
- *   │                                                  │      on mobile.
- *   │                                                  │
- *   │            (page content — children)             │
- *   │                                                  │
- *   │                              ┌─────────┐        │
- *   │                              │ FOOTER  │        │
- *   │                              │  CARD   │        │
- *   │                              │+ BADGES │        │
- *   └──────────────────────────────┴─────────┴────────┘
+ * Region model (per the user's color-coded mockups):
+ *   ┌───────────────────────────────────────┬─────┐  ← "top chrome strip"
+ *   │  NAV (top-left)                       │LOGO │
+ *   ├───────────────────────────────────────┤─────┤
+ *   │                                       │     │
+ *   │  ▓▓▓▓▓ CONTENT GRID AREA ▓▓▓▓▓▓▓▓▓▓▓ │right│
+ *   │  (grid lines visible here, tile 32px, │chrome│
+ *   │   aligned top-right)                  │strip│
+ *   │                                       │     │
+ *   │                                       │CARD │
+ *   │                                       │BADG │
+ *   └───────────────────────────────────────┴─────┘
  *
- * A subtle 1px border wraps the whole framed area. A decorative diagonal
- * line runs from the frame's bottom-left corner up to its top-right
- * corner, sitting behind all content.
+ *   • Chrome strips (top + right) are SOLID BLACK, no grid.
+ *   • Grid is only visible inside the content area, always aligned to
+ *     its top-right corner.
+ *   • Logo and footer are yellow-region elements that straddle the
+ *     boundary between chrome and content area.
+ *   • Diagonal line runs from bottom-left of the VIEWPORT to the
+ *     top-right corner of the GRID AREA. It sits above the grid but
+ *     below all other content.
  *
- * Nav rules:
- *   < xl (1280px):   Hamburger button, top-left of the frame. Tap →
- *                    full-screen overlay with the same links vertically.
- *   >= xl:           Text nav bar (HOME | ABOUT | PROGRESS | GALLERY),
- *                    top-left of the frame.
- *
- * The logo is 4 cells × 2 cells (128 × 64 px). It sits at the top-right
- * of the frame on tablet+, and centered under the hamburger on mobile.
- *
- * The footer card is 4 cells × 3 cells (128 × 96 px). A 1-cell gap sits
- * between it and the two 2×1-cell badges below.
+ * Breakpoints:
+ *   Mobile (<md):    top strip only, no right strip. Logo centers below
+ *                    the top nav; footer stacks at page end.
+ *   Tablet (md-xl):  top strip + right strip. Logo top-right. Footer
+ *                    bottom-right, single content column.
+ *   Desktop (xl+):   same chrome as tablet, but the content area splits
+ *                    into three columns handled by the page's children.
  */
+
 interface Props {
   children?: React.ReactNode;
-  /** Hide the corner footer block (e.g., on the private dashboard). */
+  /** Which nav to render. "public" = Home/About/Progress/Gallery;
+      "private" = Feed/Chat/Settings for signed-in pages. */
+  variant?: "public" | "private";
+  /** Hide the corner footer block (rarely useful — leave true for a
+      minimal chrome, e.g., during auth flow if desired). */
   hideFooter?: boolean;
 }
 
-export default function SiteChrome({ children, hideFooter }: Props) {
+export default function SiteChrome({
+  children,
+  variant = "public",
+  hideFooter = false,
+}: Props) {
   const [navOpen, setNavOpen] = useState(false);
 
-  // Close the mobile nav when the viewport crosses into desktop range,
-  // so a resize during navigation doesn't leave the overlay stuck open.
+  // Lock body scroll while the mobile nav overlay is open; also handle Esc.
   useEffect(() => {
     if (!navOpen) return;
     function onKey(e: KeyboardEvent) {
@@ -57,55 +67,109 @@ export default function SiteChrome({ children, hideFooter }: Props) {
   }, [navOpen]);
 
   return (
-    <div className="relative min-h-screen">
-      {/* The framed viewport wrapper. On mobile the inset is 0 so the
-          layout runs edge-to-edge; from md: up we inset by one grid
-          cell (32px) and draw a thin border around the whole thing. */}
+    <div className="relative min-h-screen bg-black text-white overflow-x-hidden">
+      {/* ═══════════════════════════════════════════════════════════════
+          GRID AREA — fixed to the viewport. On mobile it starts below
+          the top strip and spans the full width. On tablet+ it also
+          leaves a right strip. This is the ONLY place the grid pattern
+          is visible.
+          =══════════════════════════════════════════════════════════════ */}
       <div
-        className="
-          relative min-h-screen
-          md:min-h-[calc(100vh-var(--cell)*2)]
-          md:m-[var(--cell)]
-          md:border md:border-white/10
-        "
+        aria-hidden
+        className="sh-grid fixed left-0 z-0 pointer-events-none"
+        style={{
+          top: "var(--cell)",
+          right: 0,
+          bottom: 0,
+        }}
+      />
+      {/* Right strip: an overlay that hides the grid on tablet+ from the
+          right edge inward by one cell. On mobile we render nothing so the
+          grid runs to the viewport's right edge. */}
+      <div
+        aria-hidden
+        className="hidden md:block fixed top-0 bottom-0 right-0 bg-black z-0 pointer-events-none"
+        style={{ width: "var(--cell)" }}
+      />
+      {/* Top strip: hides the grid across the top of the viewport. */}
+      <div
+        aria-hidden
+        className="fixed top-0 left-0 right-0 bg-black z-0 pointer-events-none"
+        style={{ height: "var(--cell)" }}
+      />
+
+      {/* ═══════════════════════════════════════════════════════════════
+          DIAGONAL — from bottom-left of the viewport up to the top-right
+          corner of the GRID area. Grid area's top-right corner is at
+          (viewport_width - right_strip, top_strip) on tablet+, or
+          (viewport_width, top_strip) on mobile. Using a fixed-position
+          SVG with a viewBox that matches viewport dimensions is fragile,
+          so instead we render two SVGs — one mobile, one tablet+ — with
+          different endpoints. Both are z-index 1 so they sit above the
+          grid but below content (z-10).
+          =══════════════════════════════════════════════════════════════ */}
+      <svg
+        aria-hidden
+        className="fixed inset-0 w-screen h-screen z-[1] pointer-events-none md:hidden"
+        preserveAspectRatio="none"
+        viewBox="0 0 100 100"
       >
-        {/* Decorative diagonal — bottom-left to top-right of the frame.
-            Pointer-events-none + z-0 keep it purely visual. */}
-        <svg
-          aria-hidden
-          className="pointer-events-none absolute inset-0 w-full h-full z-0"
-          preserveAspectRatio="none"
-          viewBox="0 0 100 100"
-        >
-          <line
-            x1="0"
-            y1="100"
-            x2="100"
-            y2="0"
-            stroke="rgba(255,255,255,0.10)"
-            strokeWidth="0.15"
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
+        <line
+          x1="0"
+          y1="100"
+          x2="100"
+          y2="3.2"
+          stroke="rgba(255,255,255,0.12)"
+          strokeWidth="0.15"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      <svg
+        aria-hidden
+        className="hidden md:block fixed inset-0 w-screen h-screen z-[1] pointer-events-none"
+        preserveAspectRatio="none"
+        viewBox="0 0 100 100"
+      >
+        {/* End point at ~(96.8%, 3.2%) which corresponds to (100vw - 32px,
+            32px) at a 1000px wide viewport. Non-scaling stroke keeps the
+            line 1px regardless of viewBox distortion. */}
+        <line
+          x1="0"
+          y1="100"
+          x2="96.8"
+          y2="3.2"
+          stroke="rgba(255,255,255,0.12)"
+          strokeWidth="0.15"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
 
-        {/* Top-left: nav — text on xl, hamburger otherwise. */}
-        <TopLeftNav onOpen={() => setNavOpen(true)} />
+      {/* ═══════════════════════════════════════════════════════════════
+          CHROME ELEMENTS — nav (top-left), logo (top-right), footer
+          (bottom-right). All fixed to viewport. Above the diagonal and
+          the grid.
+          =══════════════════════════════════════════════════════════════ */}
+      <TopLeftNav variant={variant} onOpen={() => setNavOpen(true)} />
+      <TopRightLogo />
+      {!hideFooter && <BottomRightFooter />}
 
-        {/* Top-right: logo. On mobile it centers under the hamburger; on
-            tablet+ it snaps to the top-right corner of the frame. */}
-        <TopRightLogo />
-
-        {/* Bottom-right: footer card + badges. Hidden on the private
-            dashboard shell (hideFooter). */}
-        {!hideFooter && <BottomRightFooter />}
-
-        {/* Page content — sits above the diagonal, with padding that
-            keeps it clear of the fixed logo / nav / footer. */}
-        <div className="relative z-10">{children}</div>
+      {/* ═══════════════════════════════════════════════════════════════
+          PAGE CONTENT — flows inside the content area. Padding leaves
+          room for the fixed chrome so content isn't hidden underneath.
+          =══════════════════════════════════════════════════════════════ */}
+      <div
+        className="relative z-10"
+        style={{
+          paddingTop: "calc(var(--cell) * 3)",
+          paddingRight: "var(--cell)",
+        }}
+      >
+        {children}
       </div>
 
-      {/* Full-screen nav overlay (mobile/tablet hamburger drawer). */}
-      {navOpen && <NavOverlay onClose={() => setNavOpen(false)} />}
+      {navOpen && (
+        <NavOverlay variant={variant} onClose={() => setNavOpen(false)} />
+      )}
     </div>
   );
 }
@@ -114,82 +178,113 @@ export default function SiteChrome({ children, hideFooter }: Props) {
 // Top-left nav
 // ============================================================================
 
-function TopLeftNav({ onOpen }: { onOpen: () => void }) {
-  const linkClass =
-    "uppercase tracking-[0.22em] text-[11px] text-white/70 hover:text-white transition-colors";
+interface NavVariantProps {
+  variant: "public" | "private";
+}
+
+function TopLeftNav({
+  variant,
+  onOpen,
+}: NavVariantProps & { onOpen: () => void }) {
+  const items = variant === "public" ? PUBLIC_NAV : PRIVATE_NAV;
 
   return (
     <>
-      {/* Hamburger — visible below xl (< 1280px). Sits at the top-left
-          of the frame with a small inner padding so it isn't flush to
-          the border. On mobile there's no border, so it just floats
-          near the top-left. */}
+      {/* Hamburger — visible below xl. Inside the top chrome strip. */}
       <button
         type="button"
         onClick={onOpen}
         aria-label="Open menu"
         className="
-          xl:hidden
-          absolute top-4 left-1/2 -translate-x-1/2
-          md:top-4 md:left-4 md:translate-x-0
-          z-30 p-2 text-white/70 hover:text-white transition
+          xl:hidden fixed z-30 p-2 text-white/70 hover:text-white transition
+          top-1 left-1/2 -translate-x-1/2
+          md:top-1 md:left-2 md:translate-x-0
         "
       >
         <svg
-          width="28"
+          width="24"
           height="14"
-          viewBox="0 0 28 14"
+          viewBox="0 0 24 14"
           fill="none"
           stroke="currentColor"
           strokeWidth="1.5"
           aria-hidden
         >
-          <line x1="2" y1="4" x2="26" y2="4" />
-          <line x1="2" y1="10" x2="26" y2="10" />
+          <line x1="2" y1="4" x2="22" y2="4" />
+          <line x1="2" y1="10" x2="22" y2="10" />
         </svg>
       </button>
 
-      {/* Text nav — visible xl+ only. */}
+      {/* Text nav — desktop only. Inside the top chrome strip at top-left. */}
       <nav
         aria-label="Primary"
-        className="
-          hidden xl:flex items-center gap-3
-          absolute top-4 left-4 z-30
-        "
+        className="hidden xl:flex items-center gap-3 fixed top-0 left-3 z-30"
+        style={{ height: "var(--cell)" }}
       >
-        <Link to="/" className={linkClass}>
-          Home
-        </Link>
-        <Separator />
-        <a href="#story" className={linkClass}>
-          About
-        </a>
-        <Separator />
-        <a href="#progress" className={linkClass}>
-          Progress
-        </a>
-        <Separator />
-        <a href="#gallery" className={linkClass}>
-          Gallery
-        </a>
+        {items.map((item, i) => (
+          <span key={item.label} className="flex items-center gap-3">
+            {i > 0 && (
+              <span aria-hidden className="text-white/25 text-[10px]">
+                |
+              </span>
+            )}
+            <NavItem item={item} />
+          </span>
+        ))}
       </nav>
     </>
   );
 }
 
-function Separator() {
+function NavItem({ item }: { item: NavLinkItem }) {
+  const className =
+    "uppercase tracking-[0.22em] text-[10px] text-white/70 hover:text-white transition-colors";
+  if (item.kind === "route") {
+    return (
+      <NavLink
+        to={item.to}
+        end={item.to === "/"}
+        className={({ isActive }) =>
+          `${className} ${isActive ? "text-white" : ""}`
+        }
+      >
+        {item.label}
+      </NavLink>
+    );
+  }
   return (
-    <span aria-hidden className="text-white/30 text-[11px]">
-      |
-    </span>
+    <a href={item.href} className={className}>
+      {item.label}
+    </a>
   );
 }
+
+type NavLinkItem =
+  | { kind: "route"; label: string; to: string }
+  | { kind: "anchor"; label: string; href: string };
+
+const PUBLIC_NAV: NavLinkItem[] = [
+  { kind: "route", label: "Home", to: "/" },
+  { kind: "anchor", label: "About", href: "#about" },
+  { kind: "anchor", label: "Process", href: "#process" },
+  { kind: "anchor", label: "Gallery", href: "#gallery" },
+];
+
+const PRIVATE_NAV: NavLinkItem[] = [
+  { kind: "route", label: "Feed", to: "/dashboard" },
+  { kind: "route", label: "Chat", to: "/chat" },
+  { kind: "route", label: "Settings", to: "/settings" },
+];
 
 // ============================================================================
 // Mobile / tablet nav overlay
 // ============================================================================
 
-function NavOverlay({ onClose }: { onClose: () => void }) {
+function NavOverlay({
+  variant,
+  onClose,
+}: NavVariantProps & { onClose: () => void }) {
+  const items = variant === "public" ? PUBLIC_NAV : PRIVATE_NAV;
   const linkClass =
     "font-serif text-4xl md:text-5xl text-white/85 hover:text-white transition-colors";
 
@@ -200,7 +295,6 @@ function NavOverlay({ onClose }: { onClose: () => void }) {
       aria-label="Menu"
       className="fixed inset-0 z-[60] bg-black/95 backdrop-blur-sm flex flex-col"
     >
-      {/* Close X, top-right of the overlay */}
       <button
         type="button"
         onClick={onClose}
@@ -222,25 +316,38 @@ function NavOverlay({ onClose }: { onClose: () => void }) {
       </button>
 
       <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6">
-        <Link to="/" onClick={onClose} className={linkClass}>
-          Home
-        </Link>
-        <a href="#story" onClick={onClose} className={linkClass}>
-          About
-        </a>
-        <a href="#progress" onClick={onClose} className={linkClass}>
-          Progress
-        </a>
-        <a href="#gallery" onClick={onClose} className={linkClass}>
-          Gallery
-        </a>
+        {items.map((item) => {
+          if (item.kind === "route") {
+            return (
+              <Link
+                key={item.label}
+                to={item.to}
+                onClick={onClose}
+                className={linkClass}
+              >
+                {item.label}
+              </Link>
+            );
+          }
+          return (
+            <a
+              key={item.label}
+              href={item.href}
+              onClick={onClose}
+              className={linkClass}
+            >
+              {item.label}
+            </a>
+          );
+        })}
       </div>
     </div>
   );
 }
 
 // ============================================================================
-// Top-right logo — 4 cells wide × 2 cells tall (128 × 64 px).
+// Top-right logo — 4 cells × 2 cells (128 × 64). Straddles the top chrome
+// strip boundary: top edge at viewport top, extends 2 cells below.
 // ============================================================================
 
 function TopRightLogo() {
@@ -248,14 +355,11 @@ function TopRightLogo() {
     <Link
       to="/"
       aria-label="Self-Healing — home"
-      className="
-        absolute z-30 hover:opacity-80 transition-opacity
-        top-[calc(var(--cell)*2)] left-1/2 -translate-x-1/2
-        md:top-0 md:right-0 md:left-auto md:translate-x-0
-        block
-      "
+      className="fixed z-30 hover:opacity-80 transition-opacity block"
       style={{
-        // Fixed logo box: 4 cells wide × 2 cells tall.
+        // Tablet+: snap to top-right corner. Mobile: center below top strip.
+        top: 0,
+        right: 0,
         width: "calc(var(--cell) * 4)",
         height: "calc(var(--cell) * 2)",
       }}
@@ -263,55 +367,35 @@ function TopRightLogo() {
       <img
         src="/logo.svg"
         alt="Self-Healing"
-        className="w-full h-full object-contain"
+        className="w-full h-full object-contain p-1"
       />
     </Link>
   );
 }
 
 // ============================================================================
-// Bottom-right footer — card + two badges beneath it.
+// Bottom-right footer — card (4×3 cells) + 1-cell gap + badges (4×1 cells).
+// Straddles the right chrome strip boundary.
 // ============================================================================
 
 function BottomRightFooter() {
   return (
     <div
-      aria-hidden={false}
-      className="
-        absolute z-30
-        left-1/2 -translate-x-1/2 bottom-[calc(var(--cell)*2)]
-        md:left-auto md:right-0 md:bottom-0 md:translate-x-0
-        flex flex-col items-center md:items-end
-      "
+      className="fixed z-30 flex flex-col items-end"
+      style={{
+        right: 0,
+        bottom: 0,
+      }}
     >
       <FooterCard />
-      {/* 1-cell gap between card and badges */}
       <div style={{ height: "var(--cell)" }} />
       <FooterBadges />
     </div>
   );
 }
 
-/**
- * Footer card — mirrors the OKOK artifact HTML but sized to fit the
- * 4-cell width target the user specified. The card is 4 cells wide
- * (128 px), the text stack rows split each phrase across columns with
- * `justify-between`, and the "A SPACE FOR HEALING" pill scrolls
- * infinitely via the `.sh-marquee` keyframe (see globals.css).
- */
 function FooterCard() {
-  // 4 cells wide × 3 cells tall = 128 × 96 px. Extremely tight for the
-  // amount of copy, so:
-  //   • padding is 3px on all sides
-  //   • font-size drops to 5px for word rows, 6px for the marquee text
-  //   • letter-spacing is minimized so `justify-between` doesn't have to
-  //     stretch the words too far apart on wide rows like OPEPEN.ART
-  //   • the pill shrinks to 14px tall
-  //   • row margins are 0 (line-height alone handles spacing)
-  //
-  // At this scale it reads as a texture more than as prose — which
-  // matches the intent of the mockup: it's a stamp / label, not a
-  // paragraph.
+  // 4 cells wide × 3 cells tall = 128 × 96 px, forced sizing per user request.
   return (
     <div
       className="text-white/55 border border-white/15"
@@ -327,6 +411,7 @@ function FooterCard() {
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
+        background: "#000",
       }}
     >
       <div>
@@ -378,8 +463,10 @@ function FooterCard() {
         </div>
       </div>
 
-      {/* Marquee pill */}
-      <div className="relative" style={{ marginTop: "2px", marginBottom: "1px" }}>
+      <div
+        className="relative"
+        style={{ marginTop: "2px", marginBottom: "1px" }}
+      >
         <span
           className="absolute left-1/2 -translate-x-1/2 text-white/60"
           style={{ top: "-4px", fontSize: "5px", lineHeight: 1 }}
@@ -422,11 +509,6 @@ function FooterCard() {
   );
 }
 
-/**
- * Two SVG badges (created-by-hand + built-on-eth) placed side-by-side.
- * Each is 2 cells × 1 cell (64 × 32 px), matching their native SVG
- * viewBox aspect ratio.
- */
 function FooterBadges() {
   return (
     <div className="flex gap-0">

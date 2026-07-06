@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import Header from "../components/Header";
+import SiteChrome from "../components/SiteChrome";
 import Reveal from "../components/Reveal";
 import { logout } from "../utils/auth";
 import { useAuth } from "../utils/useAuth";
@@ -56,11 +56,15 @@ export default function Settings() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
-      {/* Grid background is handled by body (globals.css). */}
-      <Header variant="private" />
-
-      <main className="mx-auto max-w-5xl w-full px-4 md:px-10 py-8 md:py-12 flex-1">
+    <SiteChrome variant="private">
+      <main
+        className="mx-auto max-w-5xl w-full flex-1"
+        style={{
+          paddingLeft: "var(--cell)",
+          paddingRight: "var(--cell)",
+          paddingBottom: "calc(var(--cell) * 7)",
+        }}
+      >
         <Reveal className="border border-line bg-black">
           {/* Top bar */}
           <div className="flex items-center justify-between px-5 md:px-7 py-4">
@@ -122,7 +126,7 @@ export default function Settings() {
           </div>
         </Reveal>
       </main>
-    </div>
+    </SiteChrome>
   );
 }
 

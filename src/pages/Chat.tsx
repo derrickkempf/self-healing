@@ -1,4 +1,4 @@
-import Header from "../components/Header";
+import SiteChrome from "../components/SiteChrome";
 import ChatThread from "../components/ChatThread";
 import Reveal from "../components/Reveal";
 import { useAuth } from "../utils/useAuth";
@@ -6,11 +6,17 @@ import { useAuth } from "../utils/useAuth";
 export default function Chat() {
   const { session } = useAuth();
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header variant="private" />
-      <main className="mx-auto max-w-3xl w-full px-6 md:px-10 py-8 md:py-10 flex-1 flex flex-col">
+    <SiteChrome variant="private">
+      <main
+        className="mx-auto max-w-3xl w-full flex flex-col"
+        style={{
+          paddingLeft: "var(--cell)",
+          paddingRight: "var(--cell)",
+          paddingBottom: "calc(var(--cell) * 7)",
+        }}
+      >
         <Reveal className="mb-6">
-          <p className="text-[11px] uppercase tracking-[0.18em] text-muted mb-2">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-white/50 mb-2">
             Collaborators
           </p>
           <h1 className="font-serif text-3xl md:text-4xl">Chat</h1>
@@ -19,6 +25,6 @@ export default function Chat() {
           <ChatThread currentEmail={session?.email ?? "unknown"} />
         </Reveal>
       </main>
-    </div>
+    </SiteChrome>
   );
 }

@@ -9,19 +9,21 @@ import type { GalleryImage, Post } from "../types";
 /**
  * Public landing page.
  *
- *   Header
- *   Hero       — staggered fade-up reveals on load (post intro)
- *   Progress   — vertical timeline; each post is a marker on a connecting track.
- *                Realtime-driven: subscribe('posts') refetches whenever a new
- *                update is published from /dashboard, so the public page
- *                always reflects what the admin has posted.
- *   Gallery    — each tile reveals as it enters the viewport
- *   Footer     — soft fade-up at the bottom of the page
+ * Desktop layout (xl+): three columns side-by-side inside the content
+ * area — Gallery on the left, Process in the middle, About on the right.
+ * Each column is independently scrollable so the chrome (nav, logo,
+ * footer) stays put.
  *
- * The `Reveal` wrapper coordinates with the reveal-gate utility, so
- * above-the-fold elements queue themselves until the intro overlay or a
- * page transition has cleared. Below-the-fold elements fire on scroll
- * via IntersectionObserver.
+ * Tablet/mobile: the three sections stack in a single column (About →
+ * Process → Gallery), and the whole page scrolls.
+ *
+ * Content:
+ *   About    — hero (title, description, CTA) + FAQ
+ *   Process  — vertical progress-bar timeline of posts
+ *   Gallery  — grid of images
+ *
+ * The Progress timeline is driven by Supabase in realtime — new posts
+ * created from /dashboard land here without a refresh.
  */
 export default function Home() {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -56,179 +58,202 @@ export default function Home() {
   }, []);
 
   return (
-    <SiteChrome>
-      {/* HERO / STORY — staggered entrance after intro / transition.
-          Grid background is handled by <html> (see globals.css) so
-          every page gets the same drafting-paper feel. Extra top
-          padding leaves room for the fixed logo/nav; bottom padding
-          leaves room for the corner footer. */}
-      <section
-        id="story"
-        className="relative w-full text-center scroll-mt-24 pt-[calc(var(--cell)*6)]"
+    <SiteChrome variant="public">
+      {/* Desktop grid: three fixed-width columns, each scrolls independently.
+          Tablet/mobile: stacks vertically and the page scrolls as a whole. */}
+      <div
+        className="
+          grid gap-6 md:gap-8 xl:gap-10
+          grid-cols-1
+          xl:grid-cols-3
+        "
+        style={{
+          paddingLeft: "var(--cell)",
+          paddingRight: "var(--cell)",
+          paddingBottom: "calc(var(--cell) * 7)",
+        }}
       >
-        <div className="mx-auto max-w-5xl w-full px-6 md:px-10 pt-20 md:pt-32 pb-24 md:pb-40">
-          <Reveal
-            as="h1"
-            delay={0.15}
-            className="font-serif text-[14vw] md:text-[7rem] leading-[0.95] mb-10"
-          >
-            Self-Healing
-            <br />
-            <span className="italic text-sub">Mats.</span>
-          </Reveal>
-          <Reveal
-            as="p"
-            delay={0.3}
-            className="max-w-xl mx-auto text-sub text-[15px] md:text-base leading-relaxed mb-12"
-          >
-            A living journal of the materials, methods and milestones behind
-            Self-Healing — a small-batch elastomer mat designed to mend itself.
-            Updates land here as the line moves.
-          </Reveal>
-          <Reveal delay={0.45}>
-            <Link
-              to="/login"
-              className="inline-block border border-white px-6 py-3 text-xs uppercase tracking-[0.2em] hover:bg-white hover:text-black transition"
-            >
-              Access Insights →
-            </Link>
-          </Reveal>
-        </div>
-      </section>
+        <Column id="gallery" label="Gallery">
+          <GalleryContent images={galleryImages} />
+        </Column>
 
-      {/* TIMELINE / FEED — progress-bar style. Each post is a marker on a
-          continuous vertical track. The track is drawn per-list-item as a
-          line that runs from this dot down into the next item's space, so
-          the connection feels physical even when there are big gaps between
-          posts. */}
-      <section
-        id="progress"
-        className="mx-auto max-w-5xl w-full px-6 md:px-10 py-20 md:py-28 scroll-mt-24"
-      >
-        <Reveal className="flex items-baseline justify-between mb-12">
-          <h2 className="font-serif text-3xl md:text-5xl">Progress</h2>
-          <span className="text-[11px] uppercase tracking-[0.18em] text-muted">
-            Latest {posts.length}
-          </span>
-        </Reveal>
+        <Column id="process" label="Process">
+          <ProcessContent posts={posts} />
+        </Column>
 
-        {posts.length === 0 ? (
-          <p className="text-muted text-sm">No updates yet.</p>
-        ) : (
-          <ol className="relative">
-            {posts.map((p, i) => {
-              const isLast = i === posts.length - 1;
-              return (
-                <Reveal
-                  as="li"
-                  key={p.id}
-                  /* small per-item stagger for the first few which may
-                     be in the viewport together on initial load */
-                  delay={i < 3 ? i * 0.08 : 0}
-                  className={`relative pl-10 md:pl-14 ${isLast ? "" : "pb-12"}`}
-                >
-                  {/* Connector line — extends from this dot's center down
-                      past this li and into the next li's top padding to
-                      reach the next dot. Skipped on the last item. */}
-                  {!isLast && (
-                    <span
-                      aria-hidden
-                      className="absolute left-[7px] top-[19px] bottom-[-12px] w-px bg-white/25"
-                    />
-                  )}
-
-                  {/* Marker dot — concentric: thin outer ring + filled
-                      center. Layered above the connector line so it
-                      visually "stops" the track at this post. */}
-                  <span
-                    aria-hidden
-                    className="absolute left-0 top-3 z-10 flex items-center justify-center w-[15px] h-[15px] rounded-full bg-black border border-white/60"
-                  >
-                    <span className="w-[7px] h-[7px] rounded-full bg-white" />
-                  </span>
-
-                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted mb-3">
-                    {formatDate(p.created_at)}
-                  </p>
-                  <article>
-                    <h3 className="font-serif text-2xl md:text-3xl mb-3">
-                      {p.title}
-                    </h3>
-                    <p className="text-sub text-[14px] leading-relaxed max-w-2xl whitespace-pre-wrap">
-                      {p.content}
-                    </p>
-                    {p.image_url && (
-                      <img
-                        src={p.image_url}
-                        alt={p.title}
-                        className="mt-6 w-full max-w-xl border border-line"
-                      />
-                    )}
-                  </article>
-                </Reveal>
-              );
-            })}
-          </ol>
-        )}
-      </section>
-
-      {/* GALLERY */}
-      <section
-        id="gallery"
-        className="mx-auto max-w-5xl w-full px-6 md:px-10 py-20 md:py-28 scroll-mt-24"
-      >
-        <Reveal className="flex items-baseline justify-between mb-12">
-          <h2 className="font-serif text-3xl md:text-5xl">Gallery</h2>
-          <span className="text-[11px] uppercase tracking-[0.18em] text-muted">
-            {galleryImages.length} images
-          </span>
-        </Reveal>
-
-        {galleryImages.length === 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <Reveal key={i} delay={(i % 3) * 0.06}>
-                <Placeholder index={i} />
-              </Reveal>
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3">
-            {galleryImages.map((img, i) => (
-              <Reveal key={img.id} delay={(i % 3) * 0.06}>
-                <img
-                  src={img.url}
-                  alt={img.caption}
-                  className="aspect-square w-full object-cover border border-line"
-                />
-              </Reveal>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* FAQ */}
-      <section className="mx-auto max-w-5xl w-full px-6 md:px-10 py-20 md:py-28">
-        <Reveal className="mb-10 md:mb-14">
-          <h2 className="font-serif text-4xl md:text-6xl">FAQ</h2>
-        </Reveal>
-        <FAQ />
-      </section>
-
-      {/* Trailing spacer so long-form content clears the fixed corner
-          footer at the bottom-right of the frame. Sized to the corner
-          footer's approximate height. */}
-      <div style={{ height: "calc(var(--cell) * 12)" }} />
+        <Column id="about" label="About">
+          <AboutContent />
+        </Column>
+      </div>
     </SiteChrome>
   );
 }
 
+// ============================================================================
+// Column shell — used for all three content regions on the landing page.
+// ============================================================================
+
+function Column({
+  id,
+  label,
+  children,
+}: {
+  id: string;
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section
+      id={id}
+      className="
+        relative scroll-mt-20
+        xl:h-[calc(100vh-var(--cell)*4)]
+        xl:overflow-y-auto xl:scrollbar-thin xl:pr-2
+      "
+    >
+      <Reveal className="mb-6">
+        <p className="text-[10px] uppercase tracking-[0.28em] text-white/50">
+          {label}
+        </p>
+      </Reveal>
+      {children}
+    </section>
+  );
+}
+
+// ============================================================================
+// About column — hero copy + FAQ
+// ============================================================================
+
+function AboutContent() {
+  return (
+    <div>
+      <Reveal
+        as="h1"
+        delay={0.05}
+        className="font-serif text-4xl md:text-6xl xl:text-5xl 2xl:text-6xl leading-[0.95] mb-6"
+      >
+        Self-Healing
+        <br />
+        <span className="italic text-white/60">Mats.</span>
+      </Reveal>
+      <Reveal
+        as="p"
+        delay={0.15}
+        className="text-white/70 text-[13px] leading-relaxed mb-8"
+      >
+        A living journal of the materials, methods and milestones behind
+        Self-Healing — a small-batch elastomer mat designed to mend itself.
+        Updates land here as the line moves.
+      </Reveal>
+      <Reveal delay={0.25} className="mb-12">
+        <Link
+          to="/login"
+          className="inline-block border border-white/70 px-5 py-2.5 text-[11px] uppercase tracking-[0.2em] hover:bg-white hover:text-black transition"
+        >
+          Access Insights →
+        </Link>
+      </Reveal>
+
+      <Reveal className="mt-16 mb-6">
+        <h2 className="font-serif text-3xl md:text-4xl">FAQ</h2>
+      </Reveal>
+      <FAQ />
+    </div>
+  );
+}
+
+// ============================================================================
+// Process column — vertical progress-bar timeline of posts
+// ============================================================================
+
+function ProcessContent({ posts }: { posts: Post[] }) {
+  if (posts.length === 0) {
+    return <p className="text-white/40 text-sm">No updates yet.</p>;
+  }
+
+  return (
+    <ol className="relative">
+      {posts.map((p, i) => {
+        const isLast = i === posts.length - 1;
+        return (
+          <Reveal
+            as="li"
+            key={p.id}
+            delay={i < 3 ? i * 0.08 : 0}
+            className={`relative pl-8 ${isLast ? "" : "pb-10"}`}
+          >
+            {!isLast && (
+              <span
+                aria-hidden
+                className="absolute left-[7px] top-[19px] bottom-[-12px] w-px bg-white/25"
+              />
+            )}
+            <span
+              aria-hidden
+              className="absolute left-0 top-3 z-10 flex items-center justify-center w-[15px] h-[15px] rounded-full bg-black border border-white/60"
+            >
+              <span className="w-[7px] h-[7px] rounded-full bg-white" />
+            </span>
+            <p className="text-[10px] uppercase tracking-[0.22em] text-white/50 mb-2">
+              {formatDate(p.created_at)}
+            </p>
+            <article>
+              <h3 className="font-serif text-xl md:text-2xl mb-2">{p.title}</h3>
+              <p className="text-white/70 text-[13px] leading-relaxed whitespace-pre-wrap">
+                {p.content}
+              </p>
+              {p.image_url && (
+                <img
+                  src={p.image_url}
+                  alt={p.title}
+                  className="mt-4 w-full border border-white/10"
+                />
+              )}
+            </article>
+          </Reveal>
+        );
+      })}
+    </ol>
+  );
+}
+
+// ============================================================================
+// Gallery column — image grid (2 columns inside the column)
+// ============================================================================
+
+function GalleryContent({ images }: { images: GalleryImage[] }) {
+  if (images.length === 0) {
+    return (
+      <div className="grid grid-cols-2 gap-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Reveal key={i} delay={(i % 2) * 0.05}>
+            <Placeholder index={i} />
+          </Reveal>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="grid grid-cols-2 gap-2">
+      {images.map((img, i) => (
+        <Reveal key={img.id} delay={(i % 2) * 0.05}>
+          <img
+            src={img.url}
+            alt={img.caption}
+            className="aspect-square w-full object-cover border border-white/10"
+          />
+        </Reveal>
+      ))}
+    </div>
+  );
+}
+
 function Placeholder({ index }: { index: number }) {
-  // Subtle radial gradient stand-ins so the grid never looks broken.
   const angle = (index * 47) % 360;
   return (
     <div
-      className="aspect-square w-full border border-line"
+      className="aspect-square w-full border border-white/10"
       style={{
         background: `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.06), rgba(255,255,255,0) 70%), conic-gradient(from ${angle}deg at 50% 50%, #0a0a0a, #111, #050505, #0a0a0a)`,
       }}

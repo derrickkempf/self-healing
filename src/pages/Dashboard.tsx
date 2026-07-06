@@ -1,5 +1,5 @@
 import { useState } from "react";
-import Header from "../components/Header";
+import SiteChrome from "../components/SiteChrome";
 import PostForm from "../components/PostForm";
 import PostFeed from "../components/PostFeed";
 import Reveal from "../components/Reveal";
@@ -10,13 +10,18 @@ export default function Dashboard() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header variant="private" />
-
-      <main className="mx-auto max-w-3xl w-full px-6 md:px-10 py-12 md:py-16">
+    <SiteChrome variant="private">
+      <main
+        className="mx-auto max-w-3xl w-full"
+        style={{
+          paddingLeft: "var(--cell)",
+          paddingRight: "var(--cell)",
+          paddingBottom: "calc(var(--cell) * 7)",
+        }}
+      >
         <Reveal className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 md:gap-0 mb-12">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.18em] text-muted mb-3">
+            <p className="text-[10px] uppercase tracking-[0.22em] text-white/50 mb-3">
               Welcome
             </p>
             <h1 className="font-serif text-4xl md:text-5xl">
@@ -40,6 +45,6 @@ export default function Dashboard() {
         onClose={() => setOpen(false)}
         authorEmail={session?.email ?? "unknown"}
       />
-    </div>
+    </SiteChrome>
   );
 }
