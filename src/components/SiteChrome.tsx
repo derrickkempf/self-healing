@@ -67,7 +67,10 @@ export default function SiteChrome({
   }, [navOpen]);
 
   return (
-    <div className="relative min-h-screen bg-black text-white overflow-x-hidden">
+    <div
+      className="relative min-h-screen text-white overflow-x-hidden"
+      style={{ background: "#1a1a1a" }}
+    >
       {/* ═══════════════════════════════════════════════════════════════
           GRID AREA — fixed to the viewport. On mobile it starts below
           the top strip and spans the full width. On tablet+ it also
@@ -83,19 +86,21 @@ export default function SiteChrome({
           bottom: 0,
         }}
       />
-      {/* Right strip: an overlay that hides the grid on tablet+ from the
-          right edge inward by one cell. On mobile we render nothing so the
-          grid runs to the viewport's right edge. */}
+      {/* Right chrome strip: overlays the grid on tablet+ from the right
+          edge inward by one cell. Mobile has none. Includes a subtle 1px
+          left border that draws the right edge of the grid area itself
+          (previously invisible). */}
       <div
         aria-hidden
-        className="hidden md:block fixed top-0 bottom-0 right-0 bg-black z-0 pointer-events-none"
-        style={{ width: "var(--cell)" }}
+        className="hidden md:block fixed top-0 bottom-0 right-0 z-0 pointer-events-none border-l border-white/10"
+        style={{ width: "var(--cell)", background: "#1a1a1a" }}
       />
-      {/* Top strip: hides the grid across the top of the viewport. */}
+      {/* Top chrome strip. Adds a 1px bottom border so the boundary
+          between the strip and the grid reads clearly. */}
       <div
         aria-hidden
-        className="fixed top-0 left-0 right-0 bg-black z-0 pointer-events-none"
-        style={{ height: "var(--cell)" }}
+        className="fixed top-0 left-0 right-0 z-0 pointer-events-none border-b border-white/10"
+        style={{ height: "var(--cell)", background: "#1a1a1a" }}
       />
 
       {/* ═══════════════════════════════════════════════════════════════
@@ -370,17 +375,22 @@ function NavOverlay({
 // ============================================================================
 
 function TopRightLogo() {
+  // Pinned to the top-right corner of the GRID AREA (not the viewport).
+  // Sits one cell below the top chrome strip and one cell left of the
+  // right chrome strip. Painted rectangle background covers any grid
+  // lines that would otherwise cross the logo. Border ties it visually
+  // to the chrome frame.
   return (
     <Link
       to="/"
       aria-label="Self-Healing — home"
-      className="fixed z-30 hover:opacity-80 transition-opacity block"
+      className="fixed z-30 hover:opacity-80 transition-opacity block border border-white/15"
       style={{
-        // Tablet+: snap to top-right corner. Mobile: center below top strip.
-        top: 0,
-        right: 0,
+        top: "var(--cell)",
+        right: "var(--cell)",
         width: "calc(var(--cell) * 4)",
         height: "calc(var(--cell) * 2)",
+        background: "#1a1a1a",
       }}
     >
       <img

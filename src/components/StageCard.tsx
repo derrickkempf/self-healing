@@ -1,31 +1,33 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useRef } from "react";
 
 /**
- * StageCard — a panel that "pops open on the stage" (the grid area).
+ * StageCard — a resizable panel that "pops open on the stage" (the grid).
  *
- * Layout (all measurements are multiples of --cell = 32px so the whole
- * card snaps cleanly onto the grid):
- *
- *   ┌───────────────────────────────────┐   ← 1px border, 2px radius
+ *   ┌───────────────────────────────────┐   ← 1px border
  *   │ LABEL                        [ × ]│   ← 32px header row
  *   ├───────────────────────────────────┤
  *   │                                   │
  *   │  content                          │
  *   │                                   │
+ *   │                              ⌟   │   ← native browser resize handle
  *   └───────────────────────────────────┘
  *
- * The header is a fixed 32px row (one grid cell tall) so multiple cards
- * side-by-side line up their headers. Card body flex-grows to fill the
- * column's available height. Content itself is scrollable if it overflows
- * — the header + X stay pinned at the top of the card.
+ * `resize: both` gives the browser's native resize handle at the
+ * bottom-right corner. After the user releases the mouse, a document-
+ * level mouseup listener snaps the card's width and height to the
+ * nearest --cell multiple (32 px) so everything stays aligned to the
+ * drafting grid. Min sizes are also expressed in cells.
  */
+
+const CELL = 32;
+const MIN_W_CELLS = 6; // 192 px
+const MIN_H_CELLS = 8; // 256 px
 
 interface Props {
   id: string;
   label: string;
   onClose?: () => void;
   children: ReactNode;
-  /** Optional extra classes on the outer card element. */
   className?: string;
 }
 
@@ -36,20 +38,55 @@ export default function StageCard({
   children,
   className = "",
 }: Props) {
+  const cardRef = useRef<HTMLDivElement | null>(null);
+
+  // Snap the card to the grid on every document mouseup while this card
+  // is mounted. Cheap — only fires per click, and only touches this
+  // card's inline style if the dimensions differ from a grid multiple.
+  useEffect(() => {
+    function snap() {
+      const el = cardRef.current;
+      if (!el) return;
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+      const snappedW = Math.max(MIN_W_CELLS * CELL, Math.round(w / CELL) * CELL);
+      const snappedH = Math.max(MIN_H_CELLS * CELL, Math.round(h / CELL) * CELL);
+      if (snappedW !== w) el.style.width = `${snappedW}px`;
+      if (snappedH !== h) el.style.height = `${snappedH}px`;
+    }
+    document.addEventListener("mouseup", snap);
+    return () => document.removeEventListener("mouseup", snap);
+  }, []);
+
   return (
     <section
       id={id}
+      ref={cardRef}
+      data-card={id}
       className={`
-        relative flex flex-col
-        border border-white/10 bg-black/60 backdrop-blur-sm
+        stage-card relative flex flex-col
+        border border-white/15
         scroll-mt-20
         ${className}
       `}
-      style={{ borderRadius: "2px" }}
+      style={{
+        borderRadius: "2px",
+        // Resizable via native browser corner handle.
+        resize: "both",
+        overflow: "hidden",
+        // Sensible defaults (7 cells wide × 16 cells tall = 224 × 512 px)
+        // that also match the mockup card proportions.
+        width: "calc(var(--cell) * 8)",
+        height: "calc(var(--cell) * 18)",
+        minWidth: `${MIN_W_CELLS * CELL}px`,
+        minHeight: `${MIN_H_CELLS * CELL}px`,
+        background: "#1a1a1a",
+        transition:
+          "width 0.12s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.12s cubic-bezier(0.2, 0.8, 0.2, 1)",
+      }}
     >
-      {/* Header — 32px tall (one grid cell). Label small-caps left, X close right. */}
       <header
-        className="flex items-center justify-between border-b border-white/10 px-4"
+        className="flex items-center justify-between border-b border-white/15 px-4 shrink-0"
         style={{ height: "var(--cell)" }}
       >
         <span className="text-[10px] uppercase tracking-[0.28em] text-white/70">
@@ -78,8 +115,6 @@ export default function StageCard({
         )}
       </header>
 
-      {/* Body — padded on all sides by one cell (32px). Flex-grows and
-          scrolls vertically if content is tall. */}
       <div
         className="flex-1 overflow-y-auto scrollbar-thin"
         style={{ padding: "var(--cell)" }}

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
 import SiteChrome from "../components/SiteChrome";
 import StageCard from "../components/StageCard";
 import {
@@ -85,27 +84,33 @@ export default function Dashboard() {
     setOpenCards((prev) => new Set(prev).add(id));
   }, []);
 
-  const location = useLocation();
-  const navigate = useNavigate();
   useEffect(() => {
-    const hash = location.hash.replace("#", "") as CardId;
-    if (!hash) return;
-    if (ALL_CARDS.includes(hash)) {
-      open(hash);
-      setTimeout(
-        () => navigate(location.pathname, { replace: true }),
-        400,
-      );
+    function handle() {
+      const hash = window.location.hash.replace("#", "") as CardId;
+      if (!hash) return;
+      if (ALL_CARDS.includes(hash)) {
+        open(hash);
+        setTimeout(() => {
+          history.replaceState(
+            null,
+            "",
+            window.location.pathname + window.location.search,
+          );
+        }, 400);
+      }
     }
-  }, [location.hash, location.pathname, navigate, open]);
+    handle();
+    window.addEventListener("hashchange", handle);
+    return () => window.removeEventListener("hashchange", handle);
+  }, [open]);
 
   return (
     <SiteChrome variant="private">
+      {/* Flex-wrap layout so each card can be resized independently and
+          snaps to the underlying grid. Cards drop to a new row when they
+          can't fit horizontally. */}
       <div
-        className="
-          flex flex-col
-          xl:grid xl:grid-cols-3 xl:h-[calc(100vh-var(--cell)*4)]
-        "
+        className="flex flex-wrap items-start"
         style={{
           gap: "var(--cell)",
           paddingLeft: "var(--cell)",

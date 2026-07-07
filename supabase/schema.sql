@@ -25,19 +25,41 @@ create table if not exists public.whitelist (
 insert into public.whitelist (email) values ('dk@derrickkempf.com')
   on conflict (email) do nothing;
 
+-- Diagnostic RPC — the client calls this when any write returns an RLS
+-- error, so we can see the exact JWT + whitelist state that produced the
+-- rejection. Runs as the caller (INVOKER, not DEFINER) so auth.jwt() and
+-- auth.role() reflect the actual request context. Safe to leave in prod;
+-- it only reveals what the caller already knows about themselves plus a
+-- boolean result of is_whitelisted().
+create or replace function public.debug_auth() returns jsonb
+  language sql stable
+as $$
+  select jsonb_build_object(
+    'auth_role', auth.role(),
+    'jwt_email', auth.jwt() ->> 'email',
+    'jwt_sub', auth.jwt() ->> 'sub',
+    'is_whitelisted', public.is_whitelisted(),
+    'has_jwt_claims',
+      current_setting('request.jwt.claims', true) is not null
+        and current_setting('request.jwt.claims', true) <> ''
+  );
+$$;
+
 -- Convenience predicate used in policies below.
 --
 -- IMPORTANT: SECURITY DEFINER so the function runs with owner privileges
--- and can read from the whitelist table even though whitelist has RLS on
--- with no client-select policy. Without this the function silently returns
--- false for every authenticated user and every write policy fails.
+-- (postgres, which has BYPASSRLS in Supabase) and can therefore read the
+-- whitelist table even though whitelist has RLS on with no client-select
+-- policy.
 --
--- `set search_path = public` locks the schema resolution to prevent an
--- attacker from shadowing `whitelist` with their own table.
+-- NOTE: Do NOT add `set search_path = ...` here. It causes auth.jwt() to
+-- return null inside the function on some Supabase / Postgres configs,
+-- silently breaking every RLS write policy that uses this predicate.
+-- We already reference the table with a fully-qualified name
+-- (public.whitelist) so schema shadowing isn't a risk in practice.
 create or replace function public.is_whitelisted() returns boolean
   language sql stable
   security definer
-  set search_path = public
 as $$
   select exists (
     select 1 from public.whitelist

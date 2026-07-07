@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
 import SiteChrome from "../components/SiteChrome";
 import StageCard from "../components/StageCard";
 import {
@@ -73,22 +72,33 @@ export default function Home() {
     setOpenCards((prev) => new Set(prev).add(id));
   }, []);
 
-  // Nav anchor links land as #about / #progress / #gallery. When the
-  // hash changes we reopen the corresponding card (and scroll to it).
-  const location = useLocation();
-  const navigate = useNavigate();
+  // Nav anchor links land as #about / #progress / #gallery. Listen to
+  // the DOM hashchange event directly (rather than react-router's
+  // useLocation) so clicking the same nav item twice — including "open a
+  // card I just closed" — reliably re-fires. On each fire we open the
+  // matching card and clear the hash, so a repeat click also works.
   useEffect(() => {
-    const hash = location.hash.replace("#", "") as CardId;
-    if (!hash) return;
-    if (ALL_CARDS.includes(hash)) {
-      open(hash);
-      // Clear the hash so the same nav click can re-open a closed card.
-      setTimeout(
-        () => navigate(location.pathname, { replace: true }),
-        400,
-      );
+    function handle() {
+      const hash = window.location.hash.replace("#", "") as CardId;
+      if (!hash) return;
+      if (ALL_CARDS.includes(hash)) {
+        open(hash);
+        // Give scrollIntoView a beat, then clear the hash so a second
+        // click on the same link fires hashchange again.
+        setTimeout(() => {
+          history.replaceState(
+            null,
+            "",
+            window.location.pathname + window.location.search,
+          );
+        }, 400);
+      }
     }
-  }, [location.hash, location.pathname, navigate, open]);
+    // Fire once on mount in case the page loaded with a hash already set.
+    handle();
+    window.addEventListener("hashchange", handle);
+    return () => window.removeEventListener("hashchange", handle);
+  }, [open]);
 
   return (
     <SiteChrome variant="public">
@@ -123,12 +133,13 @@ export default function Home() {
  * stage grid aligns to the drafting grid.
  */
 function StageGrid({ children }: { children: React.ReactNode }) {
+  // Flex-wrap layout so each card respects its own width (set by the
+  // user via the resize handle). Cards fall to a new row when they can't
+  // fit horizontally. Padding + gap are always grid multiples so cards
+  // remain snapped to the drafting grid.
   return (
     <div
-      className="
-        flex flex-col
-        xl:grid xl:grid-cols-3 xl:h-[calc(100vh-var(--cell)*4)]
-      "
+      className="flex flex-wrap items-start"
       style={{
         gap: "var(--cell)",
         paddingLeft: "var(--cell)",

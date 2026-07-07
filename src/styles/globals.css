@@ -50,24 +50,27 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Base — solid black canvas. The grid pattern is scoped to a
-   specific "grid area" div inside SiteChrome, so the chrome strips
-   (top + right) render as solid black without visible grid lines. */
+/* Base — soft charcoal canvas (#1a1a1a). The grid pattern is scoped to
+   a specific "grid area" div inside SiteChrome, so the chrome strips
+   (top + right) render as solid #1a1a1a without visible grid lines. */
 html,
 body,
 #root {
   color: #ffffff;
   min-height: 100%;
-  background: #000000;
+  background: #1a1a1a;
 }
 
 /* Grid utility — paints the drafting-grid background. Applied to a
    positioned div that represents the content area (not the whole
-   viewport). Aligned to the top-right corner. */
+   viewport). Aligned to the top-right corner so the partial cell (if
+   any) falls on the left edge, not the anchor corner. Opacity is
+   slightly bumped from the previous 0.09 so the lines still read
+   against the lighter #1a1a1a base. */
 .sh-grid {
   background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.09) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.09) 1px, transparent 1px);
+    linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
   background-size: var(--cell) var(--cell);
   background-position: right top;
 }

@@ -46,3 +46,10 @@ export const supabase: SupabaseClient = createClient(
     },
   },
 );
+
+// Expose the client on window in production so we can diagnose RLS /
+// JWT issues from devtools. Zero security impact — the anon key is
+// public anyway and the same client is already loaded into the app.
+if (typeof window !== "undefined") {
+  (window as unknown as { supabase: SupabaseClient }).supabase = supabase;
+}

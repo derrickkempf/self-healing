@@ -221,12 +221,58 @@ function Placeholder({ index }: { index: number }) {
 // Messaging card content (logged-in only) — realtime chat
 // ============================================================================
 
+/** A small hand-picked emoji palette. Deliberately compact so it fits in
+ *  the composer without needing a heavy picker library. */
+const EMOJI_PALETTE = [
+  "😀", "😅", "😂", "🤔", "😎", "😍", "🥲", "🥳",
+  "👍", "👏", "🙏", "💪", "🤝", "🫡", "🫶", "🔥",
+  "✨", "🎉", "💯", "✅", "❌", "⏳", "🚀", "⚡",
+  "❤️", "💔", "👀", "🧠", "💡", "📌", "📝", "🛠️",
+];
+
+
 export function MessagingContent({ currentEmail }: { currentEmail: string }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [profiles, setProfiles] = useState<Record<string, Profile>>({});
   const [draft, setDraft] = useState("");
   const [sendError, setSendError] = useState<string | null>(null);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const draftRef = useRef<HTMLInputElement | null>(null);
   const endRef = useRef<HTMLDivElement | null>(null);
+
+  // Insert an emoji at the current caret position in the draft input.
+  function insertEmoji(emoji: string) {
+    const input = draftRef.current;
+    if (!input) {
+      setDraft((d) => d + emoji);
+      return;
+    }
+    const start = input.selectionStart ?? draft.length;
+    const end = input.selectionEnd ?? draft.length;
+    const next = draft.slice(0, start) + emoji + draft.slice(end);
+    setDraft(next);
+    // Restore focus + move caret past the inserted emoji.
+    requestAnimationFrame(() => {
+      input.focus();
+      const pos = start + emoji.length;
+      input.setSelectionRange(pos, pos);
+    });
+  }
+
+  // Quote a message into the composer as a reply prefix. The user can
+  // add their own text after the quote and send.
+  function quoteMessage(m: Message) {
+    const display =
+      m.sender_email === currentEmail
+        ? "you"
+        : profiles[m.sender_email]?.display_name || m.sender_email.split("@")[0];
+    // Trim the quoted body to something reasonable so long messages
+    // don't blow out the composer.
+    const preview = m.content.length > 120 ? m.content.slice(0, 118) + "…" : m.content;
+    const quoted = `> @${display}: ${preview}\n\n`;
+    setDraft((d) => (d.startsWith("> @") ? d : quoted + d));
+    draftRef.current?.focus();
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -303,7 +349,7 @@ export function MessagingContent({ currentEmail }: { currentEmail: string }) {
                 ? "you"
                 : profile?.display_name || m.sender_email.split("@")[0];
               return (
-                <li key={m.id}>
+                <li key={m.id} className="group">
                   <div
                     className={`flex gap-3 items-start ${
                       isSelf ? "justify-end" : "justify-start"
@@ -329,10 +375,29 @@ export function MessagingContent({ currentEmail }: { currentEmail: string }) {
                       >
                         {m.content}
                       </div>
-                      <p className="text-[10px] uppercase tracking-[0.22em] text-white/40 mt-1 px-1">
-                        {displayName.toUpperCase()} · {formatTime(m.created_at)}
-                      </p>
+                      <div className="flex items-center gap-3 mt-1 px-1">
+                        <p className="text-[10px] uppercase tracking-[0.22em] text-white/40">
+                          {displayName.toUpperCase()} · {formatTime(m.created_at)}
+                        </p>
+                        {/* Reply button — quotes this message into the
+                            composer. Hidden until the row is hovered so
+                            it doesn't clutter the resting UI. */}
+                        <button
+                          type="button"
+                          onClick={() => quoteMessage(m)}
+                          className="text-[10px] uppercase tracking-[0.22em] text-white/40 hover:text-white transition opacity-0 group-hover:opacity-100"
+                          aria-label={`Reply to ${displayName}`}
+                        >
+                          Reply
+                        </button>
+                      </div>
                     </div>
+                    {isSelf && (
+                      <Avatar
+                        avatarUrl={profile?.avatar_url ?? null}
+                        seed={m.sender_email}
+                      />
+                    )}
                   </div>
                 </li>
               );
@@ -347,8 +412,44 @@ export function MessagingContent({ currentEmail }: { currentEmail: string }) {
           {sendError}
         </p>
       )}
-      <form onSubmit={handleSend} className="flex gap-3">
+
+      {/* Emoji palette — 4-row grid of the most-used emoji, opens above
+          the composer. Hidden by default; toggle via the 😊 button. */}
+      {showEmoji && (
+        <div
+          className="mb-2 p-2 border border-white/15 grid grid-cols-8 gap-1 text-xl"
+          style={{ background: "#1a1a1a", borderRadius: "2px" }}
+        >
+          {EMOJI_PALETTE.map((e) => (
+            <button
+              key={e}
+              type="button"
+              onClick={() => insertEmoji(e)}
+              className="hover:bg-white/10 rounded transition text-center leading-8 h-8 w-8"
+              aria-label={`Insert ${e}`}
+            >
+              {e}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <form onSubmit={handleSend} className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setShowEmoji((s) => !s)}
+          aria-label="Emoji"
+          className={`px-3 text-lg border transition ${
+            showEmoji
+              ? "border-white/60 bg-white/10 text-white"
+              : "border-white/15 text-white/70 hover:border-white/40"
+          }`}
+          style={{ borderRadius: "2px" }}
+        >
+          ☺
+        </button>
         <input
+          ref={draftRef}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Typing an awesome message here…"
