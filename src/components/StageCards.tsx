@@ -7,17 +7,45 @@ import {
   createPost,
   deleteMessage,
   deletePost,
+  getContent,
   getProfile,
   listMessages,
+  saveContent,
   sendMessage,
   subscribe,
 } from "../utils/supabase";
+import RichTextEditor from "./RichTextEditor";
 
 // ============================================================================
 // About card content — hero copy + FAQ + CTA
 // ============================================================================
 
+/** Hardcoded default for the About body — used until a CMS row for
+ *  `home.about` is saved, and as a permanent fallback if the fetch
+ *  fails. Kept in sync with the `home.about` entry in EDITABLE_ENTRIES
+ *  below so the editor pre-populates with the same text. */
+const HOME_ABOUT_DEFAULT_HTML =
+  "<p>A cutting mat is a base layer for healing. It takes the blade so the work can continue. This mat is built for the people making things that don't exist yet, and healing from the making at the same time.</p>" +
+  "<p>Matte black on one side. Green on the other. A3. Self-healing rubber. Numbered. Hand signed. Made in collaboration with Opepen edition artists and collectors.</p>" +
+  "<p>Created by hand. Built on Ethereum.</p>";
+
 export function AboutContent() {
+  const [bodyHtml, setBodyHtml] = useState<string>(HOME_ABOUT_DEFAULT_HTML);
+
+  // CMS-first, fallback-second. If a `home.about` row exists in the
+  // site_content table, use it. Otherwise render the hardcoded default
+  // so the page never shows an empty About card.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const row = await getContent("home.about");
+      if (!cancelled && row?.body_html) setBodyHtml(row.body_html);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <div>
       <Reveal
@@ -29,32 +57,16 @@ export function AboutContent() {
         Self-Healing
       </Reveal>
 
-      <Reveal
-        as="p"
-        delay={0.05}
-        className="text-white/70 text-[13px] leading-relaxed mb-4"
-      >
-        A cutting mat is a base layer for healing. It takes the blade so the
-        work can continue. This mat is built for the people making things that
-        don&apos;t exist yet, and healing from the making at the same time.
-      </Reveal>
-
-      <Reveal
-        as="p"
-        delay={0.1}
-        className="text-white/70 text-[13px] leading-relaxed mb-4"
-      >
-        Matte black on one side. Green on the other. A3. Self-healing rubber.
-        Numbered. Hand signed. Made in collaboration with Opepen edition
-        artists and collectors.
-      </Reveal>
-
-      <Reveal
-        as="p"
-        delay={0.15}
-        className="text-white/70 text-[13px] leading-relaxed mb-8"
-      >
-        Created by hand. Built on Ethereum.
+      <Reveal delay={0.05}>
+        {/*
+          `cms-body` scoped styles below match the site's typography so
+          rich-text HTML from the editor renders consistently with the
+          hardcoded default that was here before.
+        */}
+        <div
+          className="cms-body text-white/70 text-[13px] leading-relaxed mb-8"
+          dangerouslySetInnerHTML={{ __html: bodyHtml }}
+        />
       </Reveal>
 
       <Reveal delay={0.22}>
@@ -65,6 +77,19 @@ export function AboutContent() {
           Discover More →
         </Link>
       </Reveal>
+
+      <style>{`
+        .cms-body p { margin: 0 0 1em; }
+        .cms-body p:last-child { margin-bottom: 0; }
+        .cms-body h2 { font-family: "Instrument Serif", serif; font-size: 26px; text-transform: uppercase; letter-spacing: 0.03em; color: #fff; margin: 0.8em 0 0.4em; line-height: 1.1; }
+        .cms-body h3 { font-family: "Instrument Serif", serif; font-size: 18px; text-transform: uppercase; letter-spacing: 0.03em; color: #fff; margin: 0.8em 0 0.4em; }
+        .cms-body ul, .cms-body ol { padding-left: 1.4em; margin: 0 0 1em; }
+        .cms-body ul { list-style: disc; }
+        .cms-body ol { list-style: decimal; }
+        .cms-body blockquote { border-left: 2px solid rgba(255,255,255,0.25); padding-left: 1em; margin: 0.4em 0 0.8em; color: rgba(255,255,255,0.6); font-style: italic; }
+        .cms-body a { color: #fff; text-decoration: underline; text-underline-offset: 2px; }
+        .cms-body hr { border: 0; border-top: 1px solid rgba(255,255,255,0.15); margin: 1em 0; }
+      `}</style>
     </div>
   );
 }
@@ -910,6 +935,322 @@ export function NewPostContent({
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+// ============================================================================
+// Content admin card — headless CMS editor
+// ============================================================================
+
+/*
+ * ============================================================================
+ *  HOW TO ADD A NEW EDITABLE BLOCK  (the "two-line" change)
+ * ============================================================================
+ *
+ *  1) Register it here (STEP 1). Add a new entry to EDITABLE_ENTRIES with:
+ *       - key:         a dot-namespaced string (e.g., "home.hero_subtitle")
+ *       - label:       human-readable, shows up in the dashboard dropdown
+ *       - hasTitle:    true if the block has a separate title field
+ *       - defaultTitle:  (optional) initial title shown before it's saved
+ *       - defaultBody: HTML fallback rendered when no CMS row exists yet
+ *       - order:       ordering weight in the dropdown (lower = higher)
+ *
+ *  2) Render it where you want (STEP 2). In whichever page/component
+ *     should show this copy, add:
+ *
+ *       const [html, setHtml] = useState(YOUR_HARDCODED_DEFAULT);
+ *       useEffect(() => {
+ *         let cancelled = false;
+ *         (async () => {
+ *           const row = await getContent("home.hero_subtitle");
+ *           if (!cancelled && row?.body_html) setHtml(row.body_html);
+ *         })();
+ *         return () => { cancelled = true; };
+ *       }, []);
+ *
+ *     Then render `<div dangerouslySetInnerHTML={{ __html: html }} />`
+ *     inside an element with the `cms-body` (or `story-body`) class so
+ *     the shared typography rules apply.
+ *
+ *  That's it. The block becomes editable immediately for anyone signed in.
+ *  The Content admin card in the dashboard picks it up from EDITABLE_ENTRIES
+ *  automatically — no wiring required there.
+ *
+ *  Worked example (already registered below): `home.about`, `notify.intro`,
+ *  and all six `story.*` blocks show both steps end-to-end.
+ * ============================================================================
+ */
+
+interface EditableEntry {
+  key: string;
+  label: string;
+  hasTitle: boolean;
+  defaultTitle?: string;
+  defaultBody: string;
+  order: number;
+}
+
+const EDITABLE_ENTRIES: EditableEntry[] = [
+  {
+    key: "story.opening",
+    label: "Story — opening dek",
+    hasTitle: false,
+    defaultBody:
+      "<p>A living journal of the materials, methods, and milestones behind Self-Healing — a small-batch cutting mat made in collaboration with Opepen edition artists and their collectors. A public art protocol on Ethereum, now in your studio.</p>",
+    order: 0,
+  },
+  {
+    key: "story.section.how_it_started",
+    label: "Story — How it started",
+    hasTitle: true,
+    defaultTitle: "How it started",
+    defaultBody:
+      "<p>On July 10, 2025, nine collectors put 0.069 ETH each in front of an idea: an Opepen edition made physical. Not another print. Not a mockup. A working object — a cutting mat you could put on your desk and use.</p><p>Nine people said yes. That's what made this real.</p>",
+    order: 1,
+  },
+  {
+    key: "story.section.what_it_is",
+    label: "Story — What it is",
+    hasTitle: true,
+    defaultTitle: "What it is",
+    defaultBody:
+      "<p>A matte-black-on-one-side, green-on-the-other A3 self-healing cutting mat. Rubber that closes after the blade. Numbered 01 through 09 for the founding collectors, then in small numbered runs for anyone who wants to join them.</p><p>Every mat is made by hand in small batches, shipped from a studio, and signed. Every mat is anchored on Ethereum with a public record — mint date, edition number, owner history.</p>",
+    order: 2,
+  },
+  {
+    key: "story.section.why_opepen",
+    label: "Story — Why Opepen",
+    hasTitle: true,
+    defaultTitle: "Why Opepen",
+    defaultBody:
+      "<p>Opepen is a public art protocol on Ethereum. Editions are minted, held, and traded — but they have mostly lived as digital images or paper prints. Bringing an edition into a functional, physical object was untested.</p><p>The nine founding collectors funded that test. Their belief paid for the rubber, the mold, the grid printing, and the global shipping. Their names — or their wallets — are on the record.</p><p>This is what an Opepen edition can be when it steps off the screen.</p>",
+    order: 3,
+  },
+  {
+    key: "story.section.community_made_this",
+    label: "Story — Community made this",
+    hasTitle: true,
+    defaultTitle: "Community made this",
+    defaultBody:
+      "<p>Every step of this project was decided in public. The artwork, the material, the color, the run size, the ship date — all discussed with the nine, then documented on the Progress feed for everyone else to see.</p><p>The nine are not customers. They are the reason the project exists. Everyone who joins after them joins a community that already believes.</p>",
+    order: 4,
+  },
+  {
+    key: "story.section.what_comes_next",
+    label: "Story — What comes next",
+    hasTitle: true,
+    defaultTitle: "What comes next",
+    defaultBody:
+      "<p>Drop 001 ships to the founding nine.</p><p>Drop 002 opens for public pre-order shortly after — a small, numbered run for anyone on the notify list.</p><p>Later drops will introduce new artist collaborations, new colorways, new editions. Each one made by hand. Each one anchored on-chain. Each one a chapter.</p>",
+    order: 5,
+  },
+  {
+    key: "home.about",
+    label: "Home — About card body",
+    hasTitle: false,
+    defaultBody:
+      "<p>A cutting mat is a base layer for healing. It takes the blade so the work can continue. This mat is built for the people making things that don't exist yet, and healing from the making at the same time.</p><p>Matte black on one side. Green on the other. A3. Self-healing rubber. Numbered. Hand signed. Made in collaboration with Opepen edition artists and collectors.</p><p>Created by hand. Built on Ethereum.</p>",
+    order: 10,
+  },
+  {
+    key: "notify.intro",
+    label: "Notify — description",
+    hasTitle: false,
+    defaultBody:
+      "<p>Drop 001 is going to the nine founding collectors first. Drop 002 opens to the public shortly after. Add your email and we'll let you know when it's available.</p>",
+    order: 20,
+  },
+];
+
+export function ContentAdminContent() {
+  const [selectedKey, setSelectedKey] = useState<string>(EDITABLE_ENTRIES[0].key);
+  const [title, setTitle] = useState<string>("");
+  const [bodyHtml, setBodyHtml] = useState<string>("");
+  const [dirty, setDirty] = useState<boolean>(false);
+  const [status, setStatus] = useState<"idle" | "loading" | "saving" | "saved" | "err">(
+    "idle",
+  );
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const selected = useMemo(
+    () =>
+      EDITABLE_ENTRIES.find((e) => e.key === selectedKey) ?? EDITABLE_ENTRIES[0],
+    [selectedKey],
+  );
+
+  // Load the selected content row (or fall back to the default) any
+  // time the user picks a different key.
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setStatus("loading");
+      setErrorMsg(null);
+      const row = await getContent(selected.key);
+      if (cancelled) return;
+      setTitle(row?.title ?? selected.defaultTitle ?? "");
+      setBodyHtml(row?.body_html ?? selected.defaultBody);
+      setDirty(false);
+      setStatus("idle");
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [selected]);
+
+  async function handleSave() {
+    setStatus("saving");
+    setErrorMsg(null);
+    const { ok, error } = await saveContent(selected.key, {
+      title: selected.hasTitle ? title : null,
+      body_html: bodyHtml,
+      order_index: selected.order,
+    });
+    if (ok) {
+      setStatus("saved");
+      setDirty(false);
+      setTimeout(() => setStatus("idle"), 1800);
+    } else {
+      setStatus("err");
+      setErrorMsg(error);
+    }
+  }
+
+  async function handleRevert() {
+    if (
+      dirty &&
+      !confirm("Discard your unsaved changes and load the saved version?")
+    ) {
+      return;
+    }
+    setStatus("loading");
+    const row = await getContent(selected.key);
+    setTitle(row?.title ?? selected.defaultTitle ?? "");
+    setBodyHtml(row?.body_html ?? selected.defaultBody);
+    setDirty(false);
+    setStatus("idle");
+  }
+
+  return (
+    <div>
+      <Reveal>
+        <h2 className="font-serif text-6xl md:text-6xl uppercase mb-6">
+          Content
+        </h2>
+        <p className="text-white/60 text-[12px] mb-6">
+          Edit the copy for any editable block on the site. Changes save to
+          Supabase and appear on the public site immediately.
+        </p>
+      </Reveal>
+
+      {/* Key picker */}
+      <div className="mb-4">
+        <label
+          htmlFor="content-key"
+          className="block text-[10px] uppercase tracking-[0.28em] text-white/50 mb-2"
+        >
+          Block
+        </label>
+        <select
+          id="content-key"
+          value={selectedKey}
+          onChange={(e) => setSelectedKey(e.target.value)}
+          className="w-full border border-white/15 px-3 py-2 text-[13px] cursor-pointer"
+          style={{
+            background: "#1a1a1a",
+            colorScheme: "dark",
+            borderRadius: "2px",
+          }}
+        >
+          {EDITABLE_ENTRIES.slice()
+            .sort((a, b) => a.order - b.order)
+            .map((e) => (
+              <option key={e.key} value={e.key}>
+                {e.label}
+              </option>
+            ))}
+        </select>
+        <p className="text-[10px] uppercase tracking-[0.22em] text-white/40 mt-2">
+          key: {selected.key}
+        </p>
+      </div>
+
+      {/* Title input — only shown for entries that have a title */}
+      {selected.hasTitle && (
+        <div className="mb-4">
+          <label
+            htmlFor="content-title"
+            className="block text-[10px] uppercase tracking-[0.28em] text-white/50 mb-2"
+          >
+            Title
+          </label>
+          <input
+            id="content-title"
+            value={title}
+            onChange={(e) => {
+              setTitle(e.target.value);
+              setDirty(true);
+            }}
+            placeholder={selected.defaultTitle}
+          />
+        </div>
+      )}
+
+      {/* Body */}
+      <div className="mb-4">
+        <label className="block text-[10px] uppercase tracking-[0.28em] text-white/50 mb-2">
+          Body
+        </label>
+        {status === "loading" ? (
+          <div
+            className="border border-white/15 p-4 text-white/40 text-sm"
+            style={{ minHeight: "calc(var(--cell) * 8)", borderRadius: "2px" }}
+          >
+            Loading…
+          </div>
+        ) : (
+          <RichTextEditor
+            value={bodyHtml}
+            onChange={(html) => {
+              setBodyHtml(html);
+              setDirty(true);
+            }}
+            placeholder="Write here…"
+          />
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!dirty || status === "saving"}
+            className="px-6 py-3 text-[11px] uppercase tracking-[0.22em] bg-white text-black disabled:opacity-40"
+          >
+            {status === "saving" ? "Saving…" : "Save"}
+          </button>
+          {dirty && (
+            <button
+              type="button"
+              onClick={handleRevert}
+              className="text-[10px] uppercase tracking-[0.22em] text-white/50 hover:text-white transition"
+            >
+              Revert
+            </button>
+          )}
+        </div>
+        <div className="text-[10px] uppercase tracking-[0.22em] text-white/50">
+          {status === "saved" && "Saved"}
+          {status === "err" && errorMsg && (
+            <span className="text-red-300/90">{errorMsg}</span>
+          )}
+          {!dirty && status === "idle" && "No changes"}
+          {dirty && status === "idle" && "Unsaved changes"}
+        </div>
+      </div>
     </div>
   );
 }

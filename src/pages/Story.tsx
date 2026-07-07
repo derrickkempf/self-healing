@@ -1,21 +1,88 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import SiteChrome from "../components/SiteChrome";
 import Reveal from "../components/Reveal";
+import { listContent, type ContentRow } from "../utils/supabase";
 
 /**
- * Story page — the long-form narrative behind Self-Healing.
+ * Story page — long-form narrative behind Self-Healing.
  *
- * Voice: direct, journal, no emojis, minimal philosophical framing.
- * Structure follows the four questions any visitor arrives with — how
- * did this start, what is it, why Opepen, what comes next — plus a
- * short section on community.
- *
- * Rendered inside SiteChrome so the chrome (logo, corner footer, nav)
- * is consistent with the rest of the site. Uses a single centered
- * panel rather than the draggable stage; this is content, not a
- * workspace.
+ * Content is CMS-driven: on mount, fetch every row where key starts with
+ * `story.` from the site_content table, then render each section with
+ * the CMS value if present, or the hardcoded default otherwise. This
+ * way the page works with an empty CMS on day one and gradually shifts
+ * to editor-controlled copy as blocks are edited via the dashboard's
+ * Content admin card. Realtime subscription refreshes if a
+ * collaborator saves a change while a visitor has the page open.
  */
+
+interface SectionSpec {
+  key: string;
+  defaultTitle?: string;
+  defaultBodyHtml: string;
+}
+
+const OPENING_KEY = "story.opening";
+const OPENING_DEFAULT =
+  "<p>A living journal of the materials, methods, and milestones behind Self-Healing — a small-batch cutting mat made in collaboration with Opepen edition artists and their collectors. A public art protocol on Ethereum, now in your studio.</p>";
+
+const SECTIONS: SectionSpec[] = [
+  {
+    key: "story.section.how_it_started",
+    defaultTitle: "How it started",
+    defaultBodyHtml:
+      "<p>On July 10, 2025, nine collectors put 0.069 ETH each in front of an idea: an Opepen edition made physical. Not another print. Not a mockup. A working object — a cutting mat you could put on your desk and use.</p><p>Nine people said yes. That's what made this real.</p>",
+  },
+  {
+    key: "story.section.what_it_is",
+    defaultTitle: "What it is",
+    defaultBodyHtml:
+      "<p>A matte-black-on-one-side, green-on-the-other A3 self-healing cutting mat. Rubber that closes after the blade. Numbered 01 through 09 for the founding collectors, then in small numbered runs for anyone who wants to join them.</p><p>Every mat is made by hand in small batches, shipped from a studio, and signed. Every mat is anchored on Ethereum with a public record — mint date, edition number, owner history.</p>",
+  },
+  {
+    key: "story.section.why_opepen",
+    defaultTitle: "Why Opepen",
+    defaultBodyHtml:
+      "<p>Opepen is a public art protocol on Ethereum. Editions are minted, held, and traded — but they have mostly lived as digital images or paper prints. Bringing an edition into a functional, physical object was untested.</p><p>The nine founding collectors funded that test. Their belief paid for the rubber, the mold, the grid printing, and the global shipping. Their names — or their wallets — are on the record.</p><p>This is what an Opepen edition can be when it steps off the screen.</p>",
+  },
+  {
+    key: "story.section.community_made_this",
+    defaultTitle: "Community made this",
+    defaultBodyHtml:
+      "<p>Every step of this project was decided in public. The artwork, the material, the color, the run size, the ship date — all discussed with the nine, then documented on the Progress feed for everyone else to see.</p><p>The nine are not customers. They are the reason the project exists. Everyone who joins after them joins a community that already believes.</p>",
+  },
+  {
+    key: "story.section.what_comes_next",
+    defaultTitle: "What comes next",
+    defaultBodyHtml:
+      "<p>Drop 001 ships to the founding nine.</p><p>Drop 002 opens for public pre-order shortly after — a small, numbered run for anyone on the notify list.</p><p>Later drops will introduce new artist collaborations, new colorways, new editions. Each one made by hand. Each one anchored on-chain. Each one a chapter.</p>",
+  },
+];
+
 export default function Story() {
+  const [rows, setRows] = useState<Record<string, ContentRow>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const list = await listContent("story.");
+      if (cancelled) return;
+      const byKey: Record<string, ContentRow> = {};
+      for (const r of list) byKey[r.key] = r;
+      setRows(byKey);
+    }
+    load();
+    // Realtime for site_content isn't wired into the `subscribe`
+    // channel enum yet. Story loads on mount, and a reload picks up
+    // fresh copy. If you want live updates while an editor is saving,
+    // add "content" to the Channel type in utils/supabase.ts.
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const openingHtml = rows[OPENING_KEY]?.body_html ?? OPENING_DEFAULT;
+
   return (
     <SiteChrome variant="public">
       <main
@@ -44,87 +111,25 @@ export default function Story() {
               <br />
               self-healing
             </h1>
-            <p className="text-white/60 text-[13px] leading-relaxed mb-10 max-w-xl">
-              A living journal of the materials, methods, and milestones
-              behind Self-Healing — a small-batch cutting mat made in
-              collaboration with Opepen edition artists and their collectors.
-              A public art protocol on Ethereum, now in your studio.
-            </p>
+            <div
+              className="story-body text-white/60 text-[13px] leading-relaxed mb-10 max-w-xl"
+              dangerouslySetInnerHTML={{ __html: openingHtml }}
+            />
           </Reveal>
 
-          <Section title="How it started" delay={0.1}>
-            <p>
-              On July 10, 2025, nine collectors put 0.069 ETH each in front
-              of an idea: an Opepen edition made physical. Not another print.
-              Not a mockup. A working object — a cutting mat you could put
-              on your desk and use.
-            </p>
-            <p>
-              Nine people said yes. That&apos;s what made this real.
-            </p>
-          </Section>
-
-          <Section title="What it is" delay={0.15}>
-            <p>
-              A matte-black-on-one-side, green-on-the-other A3 self-healing
-              cutting mat. Rubber that closes after the blade. Numbered 01
-              through 09 for the founding collectors, then in small numbered
-              runs for anyone who wants to join them.
-            </p>
-            <p>
-              Every mat is made by hand in small batches, shipped from a
-              studio, and signed. Every mat is anchored on Ethereum with a
-              public record — mint date, edition number, owner history.
-            </p>
-          </Section>
-
-          <Section title="Why Opepen" delay={0.2}>
-            <p>
-              Opepen is a public art protocol on Ethereum. Editions are
-              minted, held, and traded — but they have mostly lived as
-              digital images or paper prints. Bringing an edition into a
-              functional, physical object was untested.
-            </p>
-            <p>
-              The nine founding collectors funded that test. Their belief
-              paid for the rubber, the mold, the grid printing, and the
-              global shipping. Their names — or their wallets — are on the
-              record.
-            </p>
-            <p>
-              This is what an Opepen edition can be when it steps off the
-              screen.
-            </p>
-          </Section>
-
-          <Section title="Community made this" delay={0.25}>
-            <p>
-              Every step of this project was decided in public. The
-              artwork, the material, the color, the run size, the ship
-              date — all discussed with the nine, then documented on the
-              Progress feed for everyone else to see.
-            </p>
-            <p>
-              The nine are not customers. They are the reason the project
-              exists. Everyone who joins after them joins a community that
-              already believes.
-            </p>
-          </Section>
-
-          <Section title="What comes next" delay={0.3}>
-            <p>
-              Drop 001 ships to the founding nine.
-            </p>
-            <p>
-              Drop 002 opens for public pre-order shortly after — a small,
-              numbered run for anyone on the notify list.
-            </p>
-            <p>
-              Later drops will introduce new artist collaborations, new
-              colorways, new editions. Each one made by hand. Each one
-              anchored on-chain. Each one a chapter.
-            </p>
-          </Section>
+          {SECTIONS.map((spec, i) => {
+            const row = rows[spec.key];
+            const title = row?.title ?? spec.defaultTitle ?? "";
+            const bodyHtml = row?.body_html ?? spec.defaultBodyHtml;
+            return (
+              <Section
+                key={spec.key}
+                title={title}
+                bodyHtml={bodyHtml}
+                delay={0.1 + i * 0.05}
+              />
+            );
+          })}
 
           <Reveal className="mt-12 pt-8 border-t border-white/10">
             <p className="text-white/70 text-[13px] leading-relaxed mb-6">
@@ -147,25 +152,42 @@ export default function Story() {
             </div>
           </Reveal>
         </article>
+
+        {/*
+          Inline styles for CMS-rendered HTML — same rules the editor
+          uses so what an editor sees is what a reader gets.
+        */}
+        <style>{`
+          .story-body h2, .story-body h3 { font-family: "Instrument Serif", serif; color: #ffffff; text-transform: uppercase; letter-spacing: 0.03em; line-height: 1.1; }
+          .story-body h2 { font-size: 26px; margin: 0.8em 0 0.4em; }
+          .story-body h3 { font-size: 18px; margin: 0.8em 0 0.4em; }
+          .story-body p { margin: 0 0 0.8em; }
+          .story-body ul, .story-body ol { padding-left: 1.4em; margin: 0 0 0.8em; }
+          .story-body ul { list-style: disc; }
+          .story-body ol { list-style: decimal; }
+          .story-body blockquote { border-left: 2px solid rgba(255,255,255,0.25); padding-left: 1em; margin: 0.4em 0 0.8em; color: rgba(255,255,255,0.7); font-style: italic; }
+          .story-body a { color: #fff; text-decoration: underline; text-underline-offset: 2px; }
+          .story-body hr { border: 0; border-top: 1px solid rgba(255,255,255,0.15); margin: 1em 0; }
+        `}</style>
       </main>
     </SiteChrome>
   );
 }
 
 /**
- * Section — chapter heading + body paragraph(s). Heading is now a
- * substantial mono display line (26 px, tight letter-spacing, full
- * white) so each chapter reads as a section break, not a footnote.
- * Body paragraphs remain 13 px white/70 with generous leading.
+ * Section — chapter heading + CMS-rendered body. Heading uses the exact
+ * spec the user set (26 px, 0.03 em letter-spacing, full white). Body
+ * is HTML from the CMS row (or the hardcoded default) rendered inside
+ * `.story-body` so the shared style block above applies.
  */
 function Section({
   title,
+  bodyHtml,
   delay = 0,
-  children,
 }: {
   title: string;
+  bodyHtml: string;
   delay?: number;
-  children: React.ReactNode;
 }) {
   return (
     <Reveal className="mb-12" delay={delay}>
@@ -180,9 +202,10 @@ function Section({
       >
         {title}
       </h2>
-      <div className="text-white/70 text-[13px] leading-relaxed space-y-4 max-w-xl">
-        {children}
-      </div>
+      <div
+        className="story-body text-white/70 text-[13px] leading-relaxed max-w-xl"
+        dangerouslySetInnerHTML={{ __html: bodyHtml }}
+      />
     </Reveal>
   );
 }

@@ -132,6 +132,42 @@ The project is set up to deploy to Vercel with zero configuration. A `vercel.jso
 
 ---
 
+## Editable content (the built-in CMS)
+
+Any block of copy on the public site can be made editable through the in-app **Content** card on the dashboard. There is no external CMS to run.
+
+**Currently editable:**
+
+- `home.about` — Home page About-card body
+- `notify.intro` — Notify page description
+- `story.opening` — Story page opening paragraph
+- `story.section.how_it_started` … `story.section.what_comes_next` — the five Story chapters
+
+**Adding a new editable block is a two-line change:**
+
+1. **Register it** in `src/components/StageCards.tsx`, in the `EDITABLE_ENTRIES` array. Give it a `key`, a `label` for the dashboard dropdown, and a `defaultBody` HTML fallback.
+2. **Render it** wherever it should appear on the site:
+
+   ```tsx
+   const [html, setHtml] = useState(HARDCODED_DEFAULT);
+   useEffect(() => {
+     let cancelled = false;
+     (async () => {
+       const row = await getContent("home.hero_subtitle");
+       if (!cancelled && row?.body_html) setHtml(row.body_html);
+     })();
+     return () => { cancelled = true; };
+   }, []);
+
+   return <div className="cms-body" dangerouslySetInnerHTML={{ __html: html }} />;
+   ```
+
+The Content admin card in the dashboard picks up new entries automatically — no other wiring needed.
+
+Full inline documentation is at the top of `EDITABLE_ENTRIES` in `StageCards.tsx`.
+
+---
+
 ## Design system
 
 The site is built on a 32-pixel cell. Everything — the background grid, the card sizes, the logo box, the chrome strips, the footer card, the badges — is a multiple of that unit.

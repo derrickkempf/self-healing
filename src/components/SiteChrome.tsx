@@ -335,6 +335,9 @@ const PUBLIC_NAV: NavLinkItem[] = [
   { kind: "anchor", label: "Progress", href: "#progress", base: "/" },
   { kind: "anchor", label: "Gallery", href: "#gallery", base: "/" },
   { kind: "route", label: "Notify", to: "/notify" },
+  // Login for returning collaborators. Sits at the far right of the
+  // desktop nav; also appears in the mobile drawer.
+  { kind: "route", label: "Login", to: "/login" },
 ];
 
 const PRIVATE_NAV: NavLinkItem[] = [
@@ -343,6 +346,7 @@ const PRIVATE_NAV: NavLinkItem[] = [
   { kind: "anchor", label: "Progress", href: "#progress", base: "/dashboard" },
   { kind: "anchor", label: "Gallery", href: "#gallery", base: "/dashboard" },
   { kind: "anchor", label: "Messaging", href: "#messaging", base: "/dashboard" },
+  { kind: "anchor", label: "Content", href: "#content", base: "/dashboard" },
   { kind: "route", label: "Settings", to: "/settings" },
 ];
 
@@ -357,8 +361,6 @@ function NavOverlay({
   const items = variant === "public" ? PUBLIC_NAV : PRIVATE_NAV;
   const linkClass =
     "font-serif text-5xl text-white/90 hover:text-white transition-colors uppercase leading-none";
-  const secondaryClass =
-    "uppercase tracking-[0.28em] text-[11px] text-white/60 hover:text-white transition";
 
   return (
     <div
@@ -421,19 +423,6 @@ function NavOverlay({
           );
         })}
 
-        {/* Secondary auth action — LOGIN for public visitors, mirroring the
-            mobile drawer in the design mockup. Signed-in users see LOGOUT. */}
-        <div style={{ marginTop: "var(--cell)" }}>
-          {variant === "public" ? (
-            <Link to="/login" onClick={onClose} className={secondaryClass}>
-              Login
-            </Link>
-          ) : (
-            <Link to="/settings" onClick={onClose} className={secondaryClass}>
-              Settings
-            </Link>
-          )}
-        </div>
       </div>
     </div>
   );

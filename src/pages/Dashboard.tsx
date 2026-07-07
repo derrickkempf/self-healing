@@ -4,6 +4,7 @@ import SiteChrome from "../components/SiteChrome";
 import StageCard from "../components/StageCard";
 import {
   AboutContent,
+  ContentAdminContent,
   GalleryContent,
   MessagingContent,
   NewPostContent,
@@ -22,13 +23,20 @@ import type { GalleryImage, Post } from "../types";
  * forms don't feel truncated.
  */
 
-type CardId = "compose" | "progress" | "gallery" | "messaging" | "about";
+type CardId =
+  | "compose"
+  | "progress"
+  | "gallery"
+  | "messaging"
+  | "about"
+  | "content";
 const ALL_CARDS: CardId[] = [
   "compose",
   "progress",
   "gallery",
   "messaging",
   "about",
+  "content",
 ];
 
 const INITIAL_LAYOUT: CardLayout = {
@@ -39,10 +47,13 @@ const INITIAL_LAYOUT: CardLayout = {
   compose: { x: 0, y: 0, w: 12, h: 18, z: 1 },
   progress: { x: 13, y: 0, w: 14, h: 22, z: 2 },
   messaging: { x: 28, y: 0, w: 15, h: 22, z: 3 },
-  // Bottom row — Gallery | About — 1-cell gap between them, and a 1-cell
-  // vertical gap below the tallest top-row card (progress/messaging = 22).
+  // Bottom row — Gallery | About | Content — 1-cell gaps between them,
+  // and a 1-cell vertical gap below the tallest top-row card
+  // (progress/messaging = 22). Content is closed by default; users
+  // reopen it via the "Content" nav item when they want to edit copy.
   gallery: { x: 0, y: 23, w: 14, h: 20, z: 4 },
   about: { x: 15, y: 23, w: 14, h: 20, z: 5 },
+  content: { x: 30, y: 23, w: 18, h: 26, z: 6 },
 };
 
 export default function Dashboard() {
@@ -59,7 +70,7 @@ export default function Dashboard() {
 
   const { layout, isDesktop, moveCard, resizeCard, focusCard } =
     useStageLayout({
-      storageKey: "sh.layout.dashboard.v2",
+      storageKey: "sh.layout.dashboard.v3",
       initial: INITIAL_LAYOUT,
     });
 
@@ -219,6 +230,16 @@ export default function Dashboard() {
             {...freeFormProps("about")}
           >
             <AboutContent />
+          </StageCard>
+        )}
+        {openCards.has("content") && (
+          <StageCard
+            id="content"
+            label="Content"
+            onClose={() => close("content")}
+            {...freeFormProps("content")}
+          >
+            <ContentAdminContent />
           </StageCard>
         )}
       </div>

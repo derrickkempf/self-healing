@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import SiteChrome from "../components/SiteChrome";
 import Reveal from "../components/Reveal";
-import { submitSignup } from "../utils/supabase";
+import { getContent, submitSignup } from "../utils/supabase";
+
+const NOTIFY_INTRO_DEFAULT =
+  "<p>Drop 001 is going to the nine founding collectors first. Drop 002 opens to the public shortly after. Add your email and we'll let you know when it's available.</p>";
 
 /**
  * Notify — public email capture for the drop notify list.
@@ -17,6 +20,20 @@ export default function Notify() {
     "idle",
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [introHtml, setIntroHtml] = useState<string>(NOTIFY_INTRO_DEFAULT);
+
+  // Pull the intro copy from the CMS on mount; fall back to the
+  // hardcoded default if there's no row yet.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const row = await getContent("notify.intro");
+      if (!cancelled && row?.body_html) setIntroHtml(row.body_html);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -59,11 +76,19 @@ export default function Notify() {
             <h1 className="font-serif text-5xl md:text-6xl uppercase leading-[0.95] mb-6">
               Get Notified
             </h1>
-            <p className="text-white/70 text-[13px] leading-relaxed mb-8 max-w-md">
-              Drop 001 is going to the nine founding collectors first.
-              Drop 002 opens to the public shortly after. Add your email
-              and we&apos;ll let you know when it&apos;s available.
-            </p>
+            <div
+              className="cms-body text-white/70 text-[13px] leading-relaxed mb-8 max-w-md"
+              dangerouslySetInnerHTML={{ __html: introHtml }}
+            />
+            <style>{`
+              .cms-body p { margin: 0 0 1em; }
+              .cms-body p:last-child { margin-bottom: 0; }
+              .cms-body a { color: #fff; text-decoration: underline; text-underline-offset: 2px; }
+              .cms-body ul, .cms-body ol { padding-left: 1.4em; margin: 0 0 1em; }
+              .cms-body ul { list-style: disc; }
+              .cms-body ol { list-style: decimal; }
+              .cms-body blockquote { border-left: 2px solid rgba(255,255,255,0.25); padding-left: 1em; margin: 0.4em 0 0.8em; color: rgba(255,255,255,0.6); font-style: italic; }
+            `}</style>
           </Reveal>
 
           {status === "ok" ? (

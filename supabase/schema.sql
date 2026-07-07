@@ -124,6 +124,23 @@ create index if not exists gallery_position_idx
   on public.gallery_images (position);
 
 -- ============================================================================
+-- site_content (headless CMS store)
+-- ============================================================================
+-- Editable copy for the public site. Every editable block on the site
+-- has a well-known `key` (e.g., 'story.section.how_it_started'). Public
+-- pages read via `select`; whitelisted collaborators write via the in-
+-- app Content admin card. If a key isn't in the table yet, the page
+-- falls back to a hardcoded default so the site is never empty.
+
+create table if not exists public.site_content (
+  key         text primary key,
+  title       text,
+  body_html   text not null default '',
+  order_index integer not null default 0,
+  updated_at  timestamptz not null default now()
+);
+
+-- ============================================================================
 -- signups (public notify list)
 -- ============================================================================
 -- Public opt-in list for drop notifications. Anyone can add themselves;
@@ -173,12 +190,30 @@ alter table public.gallery_images     enable row level security;
 alter table public.notification_prefs enable row level security;
 alter table public.whitelist          enable row level security;
 alter table public.signups            enable row level security;
+alter table public.site_content       enable row level security;
 
 -- signups — anonymous INSERT only. Nobody can SELECT / UPDATE / DELETE
 -- from the client (the founder reads via the SQL editor).
 drop policy if exists "signups: public insert" on public.signups;
 create policy "signups: public insert" on public.signups
   for insert to anon, authenticated with check (true);
+
+-- site_content — public read, whitelisted write. Anyone can render
+-- edited copy on the public site; only allow-listed collaborators can
+-- change it via the Content admin card in the dashboard.
+drop policy if exists "site_content: public read"       on public.site_content;
+drop policy if exists "site_content: whitelisted insert" on public.site_content;
+drop policy if exists "site_content: whitelisted update" on public.site_content;
+create policy "site_content: public read" on public.site_content
+  for select using (true);
+create policy "site_content: whitelisted insert" on public.site_content
+  for insert with check (public.is_whitelisted());
+create policy "site_content: whitelisted update" on public.site_content
+  for update using (public.is_whitelisted());
+
+-- Realtime — so a save from the admin card shows up on the public
+-- Story / About / Notify pages immediately for anyone with them open.
+alter publication supabase_realtime add table public.site_content;
 
 -- posts
 drop policy if exists "posts: public read"     on public.posts;

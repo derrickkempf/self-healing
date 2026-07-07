@@ -87,6 +87,71 @@ export async function listPosts(limit?: number): Promise<Post[]> {
   return (data ?? []) as Post[];
 }
 
+// ---------- site_content (headless CMS) ----------
+
+export interface ContentRow {
+  key: string;
+  title: string | null;
+  body_html: string;
+  order_index: number;
+  updated_at: string;
+}
+
+/** Fetch a single content row by key. Returns null if the key hasn't
+ *  been created yet — caller should fall back to a hardcoded default. */
+export async function getContent(key: string): Promise<ContentRow | null> {
+  const { data, error } = await supabase
+    .from("site_content")
+    .select("*")
+    .eq("key", key)
+    .maybeSingle();
+  if (error) {
+    console.error("[supabase] getContent", key, error);
+    return null;
+  }
+  return (data as ContentRow | null) ?? null;
+}
+
+/** List all content rows whose key starts with the given prefix — used
+ *  by the Story page to load every `story.*` row in one round-trip. */
+export async function listContent(prefix: string): Promise<ContentRow[]> {
+  const { data, error } = await supabase
+    .from("site_content")
+    .select("*")
+    .like("key", `${prefix}%`)
+    .order("order_index", { ascending: true });
+  if (error) {
+    console.error("[supabase] listContent", prefix, error);
+    return [];
+  }
+  return (data ?? []) as ContentRow[];
+}
+
+/** Upsert a content row. Uses onConflict on `key` so the same helper
+ *  handles both creation and editing. Returns { ok, error }. */
+export async function saveContent(
+  key: string,
+  patch: {
+    title?: string | null;
+    body_html?: string;
+    order_index?: number;
+  },
+): Promise<{ ok: boolean; error: string | null }> {
+  const row = {
+    key,
+    ...patch,
+    updated_at: new Date().toISOString(),
+  };
+  const { error } = await supabase
+    .from("site_content")
+    .upsert(row, { onConflict: "key" });
+  if (error) {
+    console.error("[supabase] saveContent FAILED", error);
+    return { ok: false, error: formatSupabaseError(error) };
+  }
+  return { ok: true, error: null };
+}
+
 // ---------- signups (public notify list) ----------
 //
 // Anyone can submit an email to the notify list — no auth required.
