@@ -47,7 +47,7 @@ export default function Story() {
             <p className="text-white/60 text-[13px] leading-relaxed mb-10 max-w-xl">
               A living journal of the materials, methods, and milestones
               behind Self-Healing — a small-batch cutting mat made in
-              collaboration with Opepen edition artists and their collectors.
+              collaboration with Opepen edition artists and collectors.
               A public art protocol on Ethereum, now in your studio.
             </p>
           </Reveal>
@@ -55,9 +55,8 @@ export default function Story() {
           <Section title="How it started" delay={0.1}>
             <p>
               On July 10, 2025, nine collectors put 0.069 ETH each in front
-              of an idea: an Opepen edition made physical. Not another print.
-              Not a mockup. A working object — a cutting mat you could put
-              on your desk and use.
+              of an idea: a physical Opepen Edition product. Not another JPG.
+              A working art tool. A cutting mat for your desk and for use.
             </p>
             <p>
               Nine people said yes. That&apos;s what made this real.
@@ -72,16 +71,19 @@ export default function Story() {
               runs for anyone who wants to join them.
             </p>
             <p>
-              Every mat is made by hand in small batches, shipped from a
-              studio, and signed. Every mat is anchored on Ethereum with a
-              public record — mint date, edition number, owner history.
+              Every mat is designed and made in small batches, signed, and
+              shipped from my studio. Every mat is anchored on Ethereum with
+              a public record ... mint date, edition number, owner history.
             </p>
           </Section>
 
           <Section title="Why Opepen" delay={0.2}>
             <p>
-              Opepen is a public art protocol on Ethereum. Editions are
-              minted, held, and traded — but they have mostly lived as
+              Opepen Edition is a public art protocol on Ethereum by
+              Visualize Value. Creators submit their interpretations of the
+              Opepen silhouette. Collectors vote on the artwork to include
+              in the permanent collection. There are 200 spots. Editions are
+              minted, held, and traded, but they have mostly lived as
               digital images or paper prints. Bringing an edition into a
               functional, physical object was untested.
             </p>
@@ -93,21 +95,21 @@ export default function Story() {
             </p>
             <p>
               This is what an Opepen edition can be when it steps off the
-              screen.
+              screen and starts in your hands.
             </p>
           </Section>
 
           <Section title="Community made this" delay={0.25}>
             <p>
-              Every step of this project was decided in public. The
-              artwork, the material, the color, the run size, the ship
-              date — all discussed with the nine, then documented on the
-              Progress feed for everyone else to see.
+              This project was initiated as an open edition. Nine people
+              pledged support to make this happen. Thank you to Jack Butcher,
+              BubbleBullQ, BORED, Jon Spitz, PIV, Slander, Akin Sawyerr,
+              Carmstro, and LikeLewis for making this possible.
             </p>
             <p>
-              The nine are not customers. They are the reason the project
-              exists. Everyone who joins after them joins a community that
-              already believes.
+              These nine are not customers. They are the reason the project
+              exists. Everyone who joins them is joining a community that
+              already believes in the power of handmade art.
             </p>
           </Section>
 
@@ -116,13 +118,13 @@ export default function Story() {
               Drop 001 ships to the founding nine.
             </p>
             <p>
-              Drop 002 opens for public pre-order shortly after — a small,
-              numbered run for anyone on the notify list.
+              Drop 002 opens for public pre-order shortly after (a small,
+              numbered run for anyone on the notify list).
             </p>
             <p>
-              Later drops will introduce new artist collaborations, new
+              Later drops may introduce new artist collaborations, new
               colorways, new editions. Each one made by hand. Each one
-              anchored on-chain. Each one a chapter.
+              anchored on-chain. Each one a new chapter.
             </p>
           </Section>
 
