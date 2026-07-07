@@ -30,12 +30,13 @@ type CardId = "gallery" | "progress" | "about";
 const ALL_CARDS: CardId[] = ["gallery", "progress", "about"];
 
 const INITIAL_LAYOUT: CardLayout = {
-  // (x, y, w, h) in grid cells. Three cards laid out horizontally at
-  // 16 cells wide (512 px) × 22 cells tall (704 px) — enough width for
-  // the progress-card body to read comfortably.
-  gallery: { x: 0, y: 0, w: 16, h: 22, z: 1 },
-  progress: { x: 16, y: 0, w: 16, h: 22, z: 2 },
-  about: { x: 32, y: 0, w: 16, h: 22, z: 3 },
+  // (x, y, w, h) in grid cells. Three 14-cell-wide cards with a 1-cell
+  // gap between each = 44 cells total width (1408 px), which fits a
+  // 1440 px viewport (minus the 32 px right chrome strip). Gaps make
+  // sure no two cards overlap when they first open, per user request.
+  gallery: { x: 0, y: 0, w: 14, h: 22, z: 1 },
+  progress: { x: 15, y: 0, w: 14, h: 22, z: 2 },
+  about: { x: 30, y: 0, w: 14, h: 22, z: 3 },
 };
 
 export default function Home() {
@@ -47,7 +48,10 @@ export default function Home() {
 
   const { layout, isDesktop, moveCard, resizeCard, focusCard } =
     useStageLayout({
-      storageKey: "sh.layout.home",
+      // Version suffix so old cached layouts (which could overlap under
+      // the new defaults) get discarded and users see the tidy initial
+      // arrangement.
+      storageKey: "sh.layout.home.v2",
       initial: INITIAL_LAYOUT,
     });
 
@@ -111,14 +115,25 @@ export default function Home() {
     }
   }, [location.key, open]);
   useEffect(() => {
-    function handle() {
+    function handleHash() {
       const hash = window.location.hash.replace("#", "") as CardId;
       if (hash && ALL_CARDS.includes(hash)) {
         open(hash);
       }
     }
-    window.addEventListener("hashchange", handle);
-    return () => window.removeEventListener("hashchange", handle);
+    function handleEvent(e: Event) {
+      const id = (e as CustomEvent<string>).detail as CardId;
+      if (ALL_CARDS.includes(id)) open(id);
+    }
+    window.addEventListener("hashchange", handleHash);
+    // Primary path: explicit event dispatched by SiteChrome nav clicks.
+    // Fires whether or not react-router's location.key changes, so the
+    // "close then reopen via nav" flow works reliably.
+    window.addEventListener("sh:open-card", handleEvent);
+    return () => {
+      window.removeEventListener("hashchange", handleHash);
+      window.removeEventListener("sh:open-card", handleEvent);
+    };
   }, [open]);
 
   // Container min-height grows to accommodate the lowest-hanging card.

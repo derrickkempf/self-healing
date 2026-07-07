@@ -4,6 +4,8 @@ import Reveal from "./Reveal";
 import type { GalleryImage, Message, Post, Profile } from "../types";
 import {
   createPost,
+  deleteMessage,
+  deletePost,
   getProfile,
   listMessages,
   sendMessage,
@@ -66,9 +68,28 @@ function deriveTag(post: Post): "UPDATE" | "FIXED" | "SHIPPED" {
   return "UPDATE";
 }
 
-export function ProgressContent({ posts }: { posts: Post[] }) {
+interface ProgressContentProps {
+  posts: Post[];
+  /** If provided, entries authored by this email get a Delete affordance
+      on hover. Public /Home doesn't pass this — visitors can't delete. */
+  currentEmail?: string;
+}
+
+export function ProgressContent({
+  posts,
+  currentEmail,
+}: ProgressContentProps) {
   // Group posts by day so we can render date rulers between them.
   const groups = useMemo(() => groupByDate(posts), [posts]);
+
+  async function handleDelete(id: string) {
+    if (!confirm("Delete this update? This can't be undone.")) return;
+    const { error } = await deletePost(id);
+    if (error) {
+      alert("Couldn't delete: " + error);
+    }
+    // Realtime subscription will remove the row from state.
+  }
 
   return (
     <div>
@@ -90,23 +111,42 @@ export function ProgressContent({ posts }: { posts: Post[] }) {
           <DateRule label={g.dateLabel} />
 
           <div className="mt-6 space-y-6">
-            {g.posts.map((p) => (
-              <Reveal key={p.id} className="flex gap-4 items-start">
-                <StatusTag kind={deriveTag(p)} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-white/85 text-[13px] leading-relaxed whitespace-pre-wrap">
-                    {p.content}
-                  </p>
-                  {p.image_url && (
-                    <img
-                      src={p.image_url}
-                      alt={p.title}
-                      className="mt-3 w-full border border-white/10"
-                    />
+            {g.posts.map((p) => {
+              const canDelete =
+                currentEmail &&
+                p.author_email.toLowerCase() === currentEmail.toLowerCase();
+              return (
+                <Reveal
+                  key={p.id}
+                  className="group flex gap-4 items-start"
+                >
+                  <StatusTag kind={deriveTag(p)} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white/85 text-[13px] leading-relaxed whitespace-pre-wrap">
+                      {p.content}
+                    </p>
+                    {p.image_url && (
+                      <img
+                        src={p.image_url}
+                        alt={p.title}
+                        className="mt-3 w-full border border-white/10"
+                      />
+                    )}
+                  </div>
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(p.id)}
+                      aria-label="Delete update"
+                      className="opacity-0 group-hover:opacity-100 transition text-white/40 hover:text-red-300 shrink-0 p-1"
+                      title="Delete"
+                    >
+                      <TrashIcon />
+                    </button>
                   )}
-                </div>
-              </Reveal>
-            ))}
+                </Reveal>
+              );
+            })}
           </div>
         </div>
       ))}
@@ -179,38 +219,203 @@ function formatDateLabel(iso: string): string {
 // ============================================================================
 
 export function GalleryContent({ images }: { images: GalleryImage[] }) {
+  const [lightbox, setLightbox] = useState<GalleryImage | null>(null);
+
   if (images.length === 0) {
+    // No user uploads yet — show placeholder gradient tiles in a
+    // masonry-ish layout so the empty state doesn't look broken.
     return (
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+      <MasonryColumns>
         {Array.from({ length: 9 }).map((_, i) => (
           <Reveal key={i} delay={(i % 3) * 0.05}>
             <Placeholder index={i} />
           </Reveal>
         ))}
-      </div>
+      </MasonryColumns>
     );
   }
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-      {images.map((img, i) => (
-        <Reveal key={img.id} delay={(i % 3) * 0.05}>
-          <img
-            src={img.url}
-            alt={img.caption}
-            className="aspect-[3/4] w-full object-cover border border-white/10"
-          />
-        </Reveal>
-      ))}
+    <>
+      <MasonryColumns>
+        {images.map((img, i) => (
+          <Reveal key={img.id} delay={(i % 3) * 0.05}>
+            <GalleryTile
+              image={img}
+              // First 6 tiles preload eagerly so the visible chunk
+              // pops in immediately; the rest lazy-load as they
+              // approach the viewport.
+              eager={i < 6}
+              onOpen={() => setLightbox(img)}
+            />
+          </Reveal>
+        ))}
+      </MasonryColumns>
+
+      {lightbox && (
+        <Lightbox image={lightbox} onClose={() => setLightbox(null)} />
+      )}
+    </>
+  );
+}
+
+/**
+ * Masonry layout using CSS multi-column. Preserves image aspect ratios
+ * while filling columns evenly by height. Each tile has `break-inside:
+ * avoid` so images never split across columns.
+ */
+function MasonryColumns({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        columnCount: 2,
+        columnGap: "8px",
+      }}
+      className="[column-count:2] md:[column-count:3]"
+    >
+      {children}
+    </div>
+  );
+}
+
+function GalleryTile({
+  image,
+  onOpen,
+  eager = false,
+}: {
+  image: GalleryImage;
+  onOpen: () => void;
+  eager?: boolean;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group block relative w-full mb-2 border border-white/10 overflow-hidden bg-white/[0.04]"
+      style={{ breakInside: "avoid" }}
+      aria-label={`Enlarge ${image.caption || "image"}`}
+    >
+      <img
+        src={image.url}
+        alt={image.caption}
+        loading={eager ? "eager" : "lazy"}
+        decoding="async"
+        onLoad={() => setLoaded(true)}
+        className="block w-full h-auto"
+        style={{
+          // Blur-up reveal: soft blur + slight fade until the image
+          // decodes, then transitions to sharp full-opacity.
+          filter: loaded ? "blur(0px)" : "blur(14px)",
+          opacity: loaded ? 1 : 0.5,
+          transform: loaded ? "scale(1)" : "scale(1.03)",
+          transition:
+            "filter 500ms ease-out, opacity 400ms ease-out, transform 500ms ease-out",
+          willChange: loaded ? "auto" : "filter, opacity, transform",
+        }}
+      />
+      {/* Hover state: darken tile + show magnifying-glass icon center. */}
+      <span
+        aria-hidden
+        className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
+      >
+        <svg
+          width="28"
+          height="28"
+          viewBox="0 0 28 28"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          className="text-white"
+        >
+          <circle cx="12" cy="12" r="7" />
+          <line x1="17" y1="17" x2="23" y2="23" />
+        </svg>
+      </span>
+    </button>
+  );
+}
+
+/**
+ * Full-screen lightbox for viewing an uploaded image at its native
+ * resolution. Click backdrop or press Esc to close.
+ */
+function Lightbox({
+  image,
+  onClose,
+}: {
+  image: GalleryImage;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      onClick={onClose}
+      className="fixed inset-0 z-[80] bg-black/90 flex flex-col items-center justify-center px-6 py-10"
+    >
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label="Close"
+        className="absolute top-4 right-4 md:top-6 md:right-6 p-2 text-white/70 hover:text-white transition"
+      >
+        <svg
+          width="28"
+          height="28"
+          viewBox="0 0 28 28"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          aria-hidden
+        >
+          <line x1="6" y1="6" x2="22" y2="22" />
+          <line x1="22" y1="6" x2="6" y2="22" />
+        </svg>
+      </button>
+      <img
+        src={image.url}
+        alt={image.caption}
+        // Prevent the backdrop click from firing when the user clicks
+        // the image itself (they might be trying to interact with it).
+        onClick={(e) => e.stopPropagation()}
+        className="max-w-[90vw] max-h-[85vh] object-contain border border-white/10"
+      />
+      {image.caption && (
+        <p
+          onClick={(e) => e.stopPropagation()}
+          className="mt-4 text-[11px] uppercase tracking-[0.22em] text-white/60"
+        >
+          {image.caption}
+        </p>
+      )}
     </div>
   );
 }
 
 function Placeholder({ index }: { index: number }) {
   const angle = (index * 47) % 360;
+  // Vary heights so the masonry layout looks intentional even before
+  // any real photos are uploaded.
+  const heightPx = 140 + ((index * 71) % 180);
   return (
     <div
-      className="aspect-[3/4] w-full border border-white/10"
+      className="w-full mb-2 border border-white/10"
       style={{
+        breakInside: "avoid",
+        height: heightPx + "px",
         background: `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.06), rgba(255,255,255,0) 70%), conic-gradient(from ${angle}deg at 50% 50%, #0a0a0a, #111, #050505, #0a0a0a)`,
       }}
     />
@@ -220,6 +425,26 @@ function Placeholder({ index }: { index: number }) {
 // ============================================================================
 // Messaging card content (logged-in only) — realtime chat
 // ============================================================================
+
+function TrashIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.3"
+      aria-hidden
+    >
+      <line x1="2" y1="4" x2="12" y2="4" />
+      <path d="M4 4v7a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" />
+      <line x1="6" y1="6" x2="6" y2="10" />
+      <line x1="8" y1="6" x2="8" y2="10" />
+      <path d="M5 4V2.5A0.5 0.5 0 0 1 5.5 2h3a0.5 0.5 0 0 1 0.5 0.5V4" />
+    </svg>
+  );
+}
 
 /** A small hand-picked emoji palette. Deliberately compact so it fits in
  *  the composer without needing a heavy picker library. */
@@ -390,6 +615,30 @@ export function MessagingContent({ currentEmail }: { currentEmail: string }) {
                         >
                           Reply
                         </button>
+                        {/* Delete button — only shown on the current
+                            user's own messages. RLS also enforces this
+                            server-side. */}
+                        {isSelf && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (
+                                !confirm(
+                                  "Delete this message? This can't be undone.",
+                                )
+                              ) {
+                                return;
+                              }
+                              const { error } = await deleteMessage(m.id);
+                              if (error) alert("Couldn't delete: " + error);
+                            }}
+                            className="text-white/40 hover:text-red-300 transition opacity-0 group-hover:opacity-100"
+                            aria-label="Delete message"
+                            title="Delete"
+                          >
+                            <TrashIcon />
+                          </button>
+                        )}
                       </div>
                     </div>
                     {isSelf && (

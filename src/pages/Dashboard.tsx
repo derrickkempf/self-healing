@@ -32,11 +32,17 @@ const ALL_CARDS: CardId[] = [
 ];
 
 const INITIAL_LAYOUT: CardLayout = {
-  compose: { x: 0, y: 0, w: 14, h: 18, z: 1 },
-  progress: { x: 14, y: 0, w: 18, h: 22, z: 2 },
-  messaging: { x: 32, y: 0, w: 20, h: 22, z: 3 },
-  gallery: { x: 0, y: 22, w: 16, h: 20, z: 4 },
-  about: { x: 16, y: 22, w: 16, h: 20, z: 5 },
+  // Top row — Compose | Progress | Messaging — 1-cell gaps between all
+  // three so nothing overlaps on first open. Widths tuned so the row
+  // fits inside a 1440 px viewport (12 + 1 + 14 + 1 + 15 = 43 cells =
+  // 1376 px, then 32 px right chrome).
+  compose: { x: 0, y: 0, w: 12, h: 18, z: 1 },
+  progress: { x: 13, y: 0, w: 14, h: 22, z: 2 },
+  messaging: { x: 28, y: 0, w: 15, h: 22, z: 3 },
+  // Bottom row — Gallery | About — 1-cell gap between them, and a 1-cell
+  // vertical gap below the tallest top-row card (progress/messaging = 22).
+  gallery: { x: 0, y: 23, w: 14, h: 20, z: 4 },
+  about: { x: 15, y: 23, w: 14, h: 20, z: 5 },
 };
 
 export default function Dashboard() {
@@ -53,7 +59,7 @@ export default function Dashboard() {
 
   const { layout, isDesktop, moveCard, resizeCard, focusCard } =
     useStageLayout({
-      storageKey: "sh.layout.dashboard",
+      storageKey: "sh.layout.dashboard.v2",
       initial: INITIAL_LAYOUT,
     });
 
@@ -113,14 +119,22 @@ export default function Dashboard() {
     }
   }, [location.key, open]);
   useEffect(() => {
-    function handle() {
+    function handleHash() {
       const hash = window.location.hash.replace("#", "") as CardId;
       if (hash && ALL_CARDS.includes(hash)) {
         open(hash);
       }
     }
-    window.addEventListener("hashchange", handle);
-    return () => window.removeEventListener("hashchange", handle);
+    function handleEvent(e: Event) {
+      const id = (e as CustomEvent<string>).detail as CardId;
+      if (ALL_CARDS.includes(id)) open(id);
+    }
+    window.addEventListener("hashchange", handleHash);
+    window.addEventListener("sh:open-card", handleEvent);
+    return () => {
+      window.removeEventListener("hashchange", handleHash);
+      window.removeEventListener("sh:open-card", handleEvent);
+    };
   }, [open]);
 
   const maxBottom = Math.max(
@@ -174,7 +188,7 @@ export default function Dashboard() {
             onClose={() => close("progress")}
             {...freeFormProps("progress")}
           >
-            <ProgressContent posts={posts} />
+            <ProgressContent posts={posts} currentEmail={email} />
           </StageCard>
         )}
         {openCards.has("messaging") && (

@@ -161,12 +161,11 @@ export default function SiteChrome({
       {/* ═══════════════════════════════════════════════════════════════
           PAGE CONTENT — flows inside the content area. Padding leaves
           room for the fixed chrome so content isn't hidden underneath.
-          The mobile paddingTop is larger because the logo is centered
-          below the hamburger (~112 px total) rather than tucked to the
-          top-right corner as it is on desktop.
+          On mobile the logo is now part of the bottom cluster, so top
+          padding only needs to clear the hamburger + top chrome strip.
           =══════════════════════════════════════════════════════════════ */}
       <div
-        className="relative z-10 pt-32 xl:pt-24"
+        className="relative z-10 pt-14 xl:pt-24"
         style={{ paddingRight: "var(--cell)" }}
       >
         {children}
@@ -185,12 +184,14 @@ export default function SiteChrome({
 }
 
 /**
- * Mobile / tablet footer wrapper — centers the footer card + badges at
- * the bottom of the page.
+ * Mobile / tablet footer wrapper — the complete chrome cluster (logo +
+ * info card + badges) stacked as one connected block, centered at the
+ * bottom of the page.
  */
 function MobileFooter() {
   return (
     <div className="xl:hidden flex flex-col items-center w-full mt-8 mb-6 px-4">
+      <InlineLogo />
       <FooterCard />
       <FooterBadges />
     </div>
@@ -275,12 +276,27 @@ function NavItem({ item }: { item: NavLinkItem }) {
       </NavLink>
     );
   }
-  // Anchor items: use Link so we cross-navigate cleanly. If we're
-  // already on the base page, react-router still fires a navigation
-  // event which our page's location.key effect picks up to open the
-  // matching card.
+  // Anchor items: cross-navigate via Link AND fire an explicit event
+  // that the current page listens for. The event is the reliable path
+  // — react-router's location.key doesn't always fire when the target
+  // URL is the same page + hash the user just came from, which is
+  // exactly what happens when someone closes a card and reopens it.
+  // Belt + suspenders: Link handles cross-page navigation; the event
+  // handles same-page reopens.
   return (
-    <Link to={`${item.base}${item.href}`} className={className}>
+    <Link
+      to={`${item.base}${item.href}`}
+      onClick={() => {
+        const id = item.href.replace("#", "");
+        // Defer to microtask so the Link's navigate() runs first.
+        queueMicrotask(() =>
+          window.dispatchEvent(
+            new CustomEvent("sh:open-card", { detail: id }),
+          ),
+        );
+      }}
+      className={className}
+    >
       {item.label}
     </Link>
   );
@@ -368,7 +384,15 @@ function NavOverlay({
             <Link
               key={item.label}
               to={`${item.base}${item.href}`}
-              onClick={onClose}
+              onClick={() => {
+                onClose();
+                const id = item.href.replace("#", "");
+                queueMicrotask(() =>
+                  window.dispatchEvent(
+                    new CustomEvent("sh:open-card", { detail: id }),
+                  ),
+                );
+              }}
               className={linkClass}
             >
               {item.label}
@@ -400,56 +424,59 @@ function NavOverlay({
 // ============================================================================
 
 function TopRightLogo() {
-  // Desktop (xl+): pinned to the top-right corner of the GRID AREA
-  // (below the top chrome strip, left of the right chrome strip).
-  // Below xl: centered horizontally in the top chrome strip so it reads
-  // like a proper masthead on mobile / tablet.
+  // Desktop only. On tablet/mobile the logo is rendered inline inside
+  // MobileFooter so the whole chrome cluster (logo + info card + badges)
+  // reads as one connected block at the bottom of the page.
+  //
+  // z-index [2] puts the box below floating stage cards (which start at
+  // z-index 1 and cascade higher on focus) but above the grid pattern
+  // and the diagonal accent line, so the box's #1a1a1a fill still
+  // covers the grid lines that would otherwise cross the ellipse.
   return (
-    <>
-      {/* Desktop — 8 cells wide × 3 cells tall, pinned to the top-right
-          of the grid one cell in from each chrome strip. Logo image
-          padding 12 px keeps the ellipse from touching the box border. */}
-      <Link
-        to="/"
-        aria-label="Self-Healing — home"
-        className="hidden xl:block fixed z-30 hover:opacity-80 transition-opacity border border-white/15"
-        style={{
-          top: "var(--cell)",
-          right: "var(--cell)",
-          width: "calc(var(--cell) * 8)",
-          height: "calc(var(--cell) * 3)",
-          background: "#1a1a1a",
-        }}
-      >
-        <img
-          src="/logo.svg"
-          alt="Self-Healing"
-          className="w-full h-full object-contain"
-          style={{ padding: "12px" }}
-        />
-      </Link>
+    <Link
+      to="/"
+      aria-label="Self-Healing — home"
+      className="hidden xl:block fixed z-[2] hover:opacity-80 transition-opacity border border-white/15"
+      style={{
+        top: "var(--cell)",
+        right: "var(--cell)",
+        width: "calc(var(--cell) * 8)",
+        height: "calc(var(--cell) * 3)",
+        background: "#1a1a1a",
+      }}
+    >
+      <img
+        src="/logo.svg"
+        alt="Self-Healing"
+        className="w-full h-full object-contain"
+        style={{ padding: "12px" }}
+      />
+    </Link>
+  );
+}
 
-      {/* Tablet + mobile — centered under the hamburger. Same 8×3 sizing
-          so the visual weight is consistent across breakpoints. */}
-      <Link
-        to="/"
-        aria-label="Self-Healing — home"
-        className="xl:hidden fixed z-30 hover:opacity-80 transition-opacity border border-white/15 left-1/2 -translate-x-1/2"
-        style={{
-          top: "calc(var(--cell) * 1.5)",
-          width: "calc(var(--cell) * 8)",
-          height: "calc(var(--cell) * 3)",
-          background: "#1a1a1a",
-        }}
-      >
-        <img
-          src="/logo.svg"
-          alt="Self-Healing"
-          className="w-full h-full object-contain"
-          style={{ padding: "12px" }}
-        />
-      </Link>
-    </>
+/** Inline (non-fixed) logo used only inside MobileFooter. Same size and
+ *  visual as the desktop version so the mobile chrome cluster feels
+ *  like the same object relocated to the bottom of the page. */
+function InlineLogo() {
+  return (
+    <Link
+      to="/"
+      aria-label="Self-Healing — home"
+      className="block hover:opacity-80 transition-opacity border border-white/15"
+      style={{
+        width: "calc(var(--cell) * 8)",
+        height: "calc(var(--cell) * 3)",
+        background: "#1a1a1a",
+      }}
+    >
+      <img
+        src="/logo.svg"
+        alt="Self-Healing"
+        className="w-full h-full object-contain"
+        style={{ padding: "12px" }}
+      />
+    </Link>
   );
 }
 
@@ -467,9 +494,13 @@ function TopRightLogo() {
 function BottomRightFooter() {
   // Under the logo. Logo is 3 cells tall + starts at 1 cell → ends at
   // cell 4. Info box slots in from cell 4 downward.
+  //
+  // z-index [2] matches the logo above; both sit ABOVE the grid pattern
+  // and diagonal accent, but BELOW the floating stage cards so a
+  // dragged card can float over the top-right cluster.
   return (
     <div
-      className="hidden xl:flex fixed z-30 flex-col items-end"
+      className="hidden xl:flex fixed z-[2] flex-col items-end"
       style={{
         right: "var(--cell)",
         top: "calc(var(--cell) * 4)",
@@ -487,7 +518,7 @@ function FooterCard() {
   // pill sits centered vertically in the block.
   return (
     <div
-      className="text-white/55 border border-white/15"
+      className="border border-white/15"
       style={{
         width: "calc(var(--cell) * 8)",
         height: "calc(var(--cell) * 5)",
@@ -501,6 +532,10 @@ function FooterCard() {
         flexDirection: "column",
         justifyContent: "space-between",
         background: "#1a1a1a",
+        // Chrome cluster body text sits at a low-opacity white so the
+        // marquee (which explicitly uses full-opacity white below) reads
+        // as the focal element.
+        color: "#ffffff45",
       }}
     >
       <div>
@@ -552,18 +587,18 @@ function FooterCard() {
         </div>
       </div>
 
-      {/* Scrolling marquee pill — 32 px tall, 4/6 padding, 10 px text. */}
-      <div className="relative">
-        <span
-          className="absolute left-1/2 -translate-x-1/2 text-white/60"
-          style={{ top: "-6px", fontSize: "10px", lineHeight: 1 }}
-          aria-hidden
-        >
-          ×
-        </span>
+      {/* Scrolling marquee pill — 32 px tall, 4/6 padding, 10 px text.
+          Text color pinned to full-opacity white so it pops against the
+          low-opacity surrounding chrome copy. */}
+      <div>
         <div
           className="border border-white/15 rounded-full flex items-center overflow-hidden"
-          style={{ height: "32px", padding: "4px 6px", fontSize: "10px" }}
+          style={{
+            height: "32px",
+            padding: "4px 6px",
+            fontSize: "10px",
+            color: "#ffffff",
+          }}
         >
           <div className="sh-marquee">
             {Array.from({ length: 6 }).map((_, i) => (

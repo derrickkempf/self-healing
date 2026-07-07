@@ -163,18 +163,34 @@ alter table public.whitelist          enable row level security;
 -- posts
 drop policy if exists "posts: public read"     on public.posts;
 drop policy if exists "posts: insert allowed"  on public.posts;
+drop policy if exists "posts: delete own"      on public.posts;
 create policy "posts: public read" on public.posts
   for select using (true);
 create policy "posts: insert allowed" on public.posts
   for insert with check (public.is_whitelisted());
+-- Only the post's author can delete it. Whitelisted-only guarantee
+-- means public visitors (who can read) can't delete anything.
+create policy "posts: delete own" on public.posts
+  for delete using (
+    public.is_whitelisted()
+    and lower(author_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  );
 
 -- messages
 drop policy if exists "messages: read allowed"   on public.messages;
 drop policy if exists "messages: insert allowed" on public.messages;
+drop policy if exists "messages: delete own"     on public.messages;
 create policy "messages: read allowed" on public.messages
   for select using (public.is_whitelisted());
 create policy "messages: insert allowed" on public.messages
   for insert with check (public.is_whitelisted());
+-- Only the message sender can delete it. Same "whitelisted + own row"
+-- rule as posts.
+create policy "messages: delete own" on public.messages
+  for delete using (
+    public.is_whitelisted()
+    and lower(sender_email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  );
 
 -- profiles
 drop policy if exists "profiles: public read"   on public.profiles;

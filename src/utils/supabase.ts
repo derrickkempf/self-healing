@@ -87,6 +87,21 @@ export async function listPosts(limit?: number): Promise<Post[]> {
   return (data ?? []) as Post[];
 }
 
+export async function deletePost(
+  id: string,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.from("posts").delete().eq("id", id);
+  if (error) {
+    console.error(
+      "[supabase] deletePost FAILED",
+      { code: error.code, message: error.message, details: error.details, hint: error.hint },
+      error,
+    );
+    return { error: formatSupabaseError(error) };
+  }
+  return { error: null };
+}
+
 export async function createPost(input: {
   title: string;
   content: string;
@@ -129,6 +144,21 @@ export async function listMessages(): Promise<Message[]> {
     return [];
   }
   return (data ?? []) as Message[];
+}
+
+export async function deleteMessage(
+  id: string,
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.from("messages").delete().eq("id", id);
+  if (error) {
+    console.error(
+      "[supabase] deleteMessage FAILED",
+      { code: error.code, message: error.message, details: error.details, hint: error.hint },
+      error,
+    );
+    return { error: formatSupabaseError(error) };
+  }
+  return { error: null };
 }
 
 export async function sendMessage(
