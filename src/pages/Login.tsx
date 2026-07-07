@@ -137,12 +137,28 @@ export default function Login() {
     if (!loading && session) navigate(redirectTo, { replace: true });
   }, [loading, session, navigate, redirectTo]);
 
+  // Panel style — visually consistent with StageCard on Home/Dashboard
+  // and with the Settings account panel. A bordered #1a1a1a rectangle
+  // with a 32-px inner pad; keeps the auth flow feeling like a stage
+  // card rather than a floating form.
+  const panelClass = "border border-white/15 w-full";
+  const panelStyle: React.CSSProperties = {
+    background: "#1a1a1a",
+    borderRadius: "2px",
+    padding: "var(--cell)",
+  };
+
   return (
     <SiteChrome>
       <main className="min-h-screen flex items-center justify-center px-6 py-24">
         <div className="w-full max-w-[440px]">
           {step === "email" ? (
-            <form onSubmit={handleRequestCode} noValidate>
+            <form
+              onSubmit={handleRequestCode}
+              noValidate
+              className={panelClass}
+              style={panelStyle}
+            >
               <h1 className="font-serif text-5xl md:text-6xl leading-none mb-4">
                 Account
               </h1>
@@ -180,7 +196,12 @@ export default function Login() {
               )}
             </form>
           ) : (
-            <form onSubmit={handleVerify} noValidate>
+            <form
+              onSubmit={handleVerify}
+              noValidate
+              className={panelClass}
+              style={panelStyle}
+            >
               <h1 className="font-serif text-5xl md:text-6xl leading-none mb-4">
                 Check your email
               </h1>

@@ -19,7 +19,7 @@ export function AboutContent() {
     <div>
       <Reveal
         as="h2"
-        className="font-serif text-4xl md:text-5xl leading-[0.95] mb-6 uppercase"
+        className="font-serif text-6xl md:text-6xl leading-[0.95] mb-6 uppercase"
       >
         A Place For
         <br />
@@ -73,7 +73,7 @@ export function ProgressContent({ posts }: { posts: Post[] }) {
   return (
     <div>
       <Reveal>
-        <h2 className="font-serif text-5xl md:text-6xl uppercase mb-3">
+        <h2 className="font-serif text-6xl md:text-6xl uppercase mb-3">
           Progress
         </h2>
         <p className="text-white/60 text-[12px] mb-10">
@@ -330,7 +330,7 @@ export function MessagingContent({ currentEmail }: { currentEmail: string }) {
   return (
     <div className="flex flex-col h-full min-h-[400px]">
       <Reveal>
-        <h2 className="font-serif text-5xl md:text-6xl uppercase mb-6">
+        <h2 className="font-serif text-6xl md:text-6xl uppercase mb-6">
           Messaging
         </h2>
       </Reveal>
@@ -560,7 +560,7 @@ export function NewPostContent({
   return (
     <div>
       <Reveal>
-        <h2 className="font-serif text-4xl md:text-5xl uppercase mb-6">
+        <h2 className="font-serif text-6xl md:text-6xl uppercase mb-6">
           New Update
         </h2>
       </Reveal>

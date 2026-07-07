@@ -406,7 +406,9 @@ function TopRightLogo() {
   // like a proper masthead on mobile / tablet.
   return (
     <>
-      {/* Desktop */}
+      {/* Desktop — 8 cells wide × 3 cells tall, pinned to the top-right
+          of the grid one cell in from each chrome strip. Logo image
+          padding 12 px keeps the ellipse from touching the box border. */}
       <Link
         to="/"
         aria-label="Self-Healing — home"
@@ -414,34 +416,37 @@ function TopRightLogo() {
         style={{
           top: "var(--cell)",
           right: "var(--cell)",
-          width: "calc(var(--cell) * 4)",
-          height: "calc(var(--cell) * 2)",
+          width: "calc(var(--cell) * 8)",
+          height: "calc(var(--cell) * 3)",
           background: "#1a1a1a",
         }}
       >
         <img
           src="/logo.svg"
           alt="Self-Healing"
-          className="w-full h-full object-contain p-1"
+          className="w-full h-full object-contain"
+          style={{ padding: "12px" }}
         />
       </Link>
 
-      {/* Tablet + mobile — centered under the hamburger, in the chrome */}
+      {/* Tablet + mobile — centered under the hamburger. Same 8×3 sizing
+          so the visual weight is consistent across breakpoints. */}
       <Link
         to="/"
         aria-label="Self-Healing — home"
         className="xl:hidden fixed z-30 hover:opacity-80 transition-opacity border border-white/15 left-1/2 -translate-x-1/2"
         style={{
           top: "calc(var(--cell) * 1.5)",
-          width: "calc(var(--cell) * 4)",
-          height: "calc(var(--cell) * 2)",
+          width: "calc(var(--cell) * 8)",
+          height: "calc(var(--cell) * 3)",
           background: "#1a1a1a",
         }}
       >
         <img
           src="/logo.svg"
           alt="Self-Healing"
-          className="w-full h-full object-contain p-1"
+          className="w-full h-full object-contain"
+          style={{ padding: "12px" }}
         />
       </Link>
     </>
@@ -460,12 +465,14 @@ function TopRightLogo() {
  * the page content instead.
  */
 function BottomRightFooter() {
+  // Under the logo. Logo is 3 cells tall + starts at 1 cell → ends at
+  // cell 4. Info box slots in from cell 4 downward.
   return (
     <div
       className="hidden xl:flex fixed z-30 flex-col items-end"
       style={{
         right: "var(--cell)",
-        top: "calc(var(--cell) * 3)",
+        top: "calc(var(--cell) * 4)",
       }}
     >
       <FooterCard />
@@ -475,23 +482,25 @@ function BottomRightFooter() {
 }
 
 function FooterCard() {
-  // 4 cells wide × 3 cells tall = 128 × 96 px, forced sizing per user request.
+  // 8 cells wide × 5 cells tall = 256 × 160 px, per spec. All text at
+  // 10 px; content justified between top/middle/bottom rows so the
+  // pill sits centered vertically in the block.
   return (
     <div
       className="text-white/55 border border-white/15"
       style={{
-        width: "calc(var(--cell) * 4)",
-        height: "calc(var(--cell) * 3)",
-        padding: "3px",
+        width: "calc(var(--cell) * 8)",
+        height: "calc(var(--cell) * 5)",
+        padding: "6px",
         fontFamily: '"CMU Typewriter Text", monospace',
-        fontSize: "5px",
+        fontSize: "10px",
         lineHeight: 1.1,
-        letterSpacing: "0",
+        letterSpacing: "0.22em",
         borderRadius: "2px",
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        background: "#000",
+        background: "#1a1a1a",
       }}
     >
       <div>
@@ -543,20 +552,18 @@ function FooterCard() {
         </div>
       </div>
 
-      <div
-        className="relative"
-        style={{ marginTop: "2px", marginBottom: "1px" }}
-      >
+      {/* Scrolling marquee pill — 32 px tall, 4/6 padding, 10 px text. */}
+      <div className="relative">
         <span
           className="absolute left-1/2 -translate-x-1/2 text-white/60"
-          style={{ top: "-4px", fontSize: "5px", lineHeight: 1 }}
+          style={{ top: "-6px", fontSize: "10px", lineHeight: 1 }}
           aria-hidden
         >
           ×
         </span>
         <div
           className="border border-white/15 rounded-full flex items-center overflow-hidden"
-          style={{ height: "12px", padding: "0 6px", fontSize: "6px" }}
+          style={{ height: "32px", padding: "4px 6px", fontSize: "10px" }}
         >
           <div className="sh-marquee">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -566,9 +573,9 @@ function FooterCard() {
                   aria-hidden
                   className="inline-block rounded-full bg-white/50"
                   style={{
-                    width: "2px",
-                    height: "2px",
-                    margin: "0 12px",
+                    width: "3px",
+                    height: "3px",
+                    margin: "0 14px",
                     flex: "none",
                   }}
                 />
@@ -580,9 +587,9 @@ function FooterCard() {
 
       <div
         className="flex justify-between whitespace-nowrap"
-        style={{ fontSize: "5px" }}
+        style={{ fontSize: "10px" }}
       >
-        <span>©2026</span>
+        <span>© 2026</span>
         <span>SELF-HEALING</span>
       </div>
     </div>
@@ -590,22 +597,28 @@ function FooterCard() {
 }
 
 function FooterBadges() {
+  // Each badge is 4 cells × 4 cells (128 × 128 px); two side-by-side
+  // gives 8 cells wide × 4 cells tall — matching the logo + info card
+  // above them. Native SVG viewBox is 2:1, so `object-contain` keeps
+  // the artwork centered inside the square without stretching.
   return (
     <div className="flex gap-0">
       <img
         src="/badges/created-by-hand.svg"
         alt="Created by hand"
+        className="object-contain"
         style={{
-          width: "calc(var(--cell) * 2)",
-          height: "var(--cell)",
+          width: "calc(var(--cell) * 4)",
+          height: "calc(var(--cell) * 4)",
         }}
       />
       <img
         src="/badges/built-on-eth.svg"
         alt="Built on Ethereum"
+        className="object-contain"
         style={{
-          width: "calc(var(--cell) * 2)",
-          height: "var(--cell)",
+          width: "calc(var(--cell) * 4)",
+          height: "calc(var(--cell) * 4)",
         }}
       />
     </div>

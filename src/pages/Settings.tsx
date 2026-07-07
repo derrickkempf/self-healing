@@ -238,8 +238,8 @@ function ProfilePanel({ email }: { email: string }) {
         Visible to other collaborators on shared posts and chat.
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-[160px_1fr] gap-6 mb-10">
-        {/* Avatar */}
+      <div className="mb-10">
+        {/* Avatar (Cover image removed per request) */}
         <div>
           <Label>Avatar</Label>
           <button
@@ -278,44 +278,6 @@ function ProfilePanel({ email }: { email: string }) {
           )}
         </div>
 
-        {/* Cover */}
-        <div>
-          <Label>Cover Image</Label>
-          <button
-            type="button"
-            onClick={() => coverRef.current?.click()}
-            className="block w-full h-[140px] bg-[#222222] border border-line overflow-hidden hover:border-white/60 transition"
-            aria-label="Upload cover"
-          >
-            {profile.cover_url ? (
-              <img
-                src={profile.cover_url}
-                alt=""
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-muted text-[10px] uppercase tracking-[0.18em]">
-                Upload (wide)
-              </div>
-            )}
-            <input
-              ref={coverRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => handleImage("cover", e.target.files?.[0])}
-            />
-          </button>
-          {profile.cover_url && (
-            <button
-              type="button"
-              onClick={() => update("cover_url", null)}
-              className="mt-2 text-[10px] uppercase tracking-[0.18em] text-muted hover:text-white transition"
-            >
-              Remove
-            </button>
-          )}
-        </div>
       </div>
 
       <div className="space-y-6 mb-10">
@@ -384,8 +346,17 @@ function ProfilePanel({ email }: { email: string }) {
 
 function AccountPanel({ email }: { email: string }) {
   const issued = useMemo(() => new Date().toLocaleString(), []);
+  // Same panel treatment as the Login and OTP screens — bordered
+  // #1a1a1a rectangle with a cell of inner padding.
   return (
-    <div>
+    <div
+      className="border border-white/15"
+      style={{
+        background: "#1a1a1a",
+        borderRadius: "2px",
+        padding: "var(--cell)",
+      }}
+    >
       <h2 className="font-serif text-3xl md:text-4xl mb-1">Account Settings</h2>
       <p className="text-muted text-[12px] mb-8">
         Sign-in identity. Email changes require contact with the project owner.
