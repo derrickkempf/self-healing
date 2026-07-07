@@ -29,23 +29,39 @@ export function AboutContent() {
         Self-Healing
       </Reveal>
 
-      <Reveal as="p" delay={0.05} className="text-white/70 text-[13px] leading-relaxed mb-4">
-        A living journal of the materials, methods and milestones behind
-        Self-Healing — a small-batch elastomer mat designed to mend itself.
-        Every update lands here as the line moves.
+      <Reveal
+        as="p"
+        delay={0.05}
+        className="text-white/70 text-[13px] leading-relaxed mb-4"
+      >
+        A cutting mat is a base layer. It takes the blade so the work can
+        continue. We build ours for founders — the people making things that
+        don&apos;t exist yet, and healing from the making at the same time.
       </Reveal>
 
-      <Reveal as="p" delay={0.1} className="text-white/70 text-[13px] leading-relaxed mb-8">
-        Custom craft cutting mats made in collaboration with Opepen edition
-        artists. A public art protocol on Ethereum.
+      <Reveal
+        as="p"
+        delay={0.1}
+        className="text-white/70 text-[13px] leading-relaxed mb-4"
+      >
+        Matte black. A3. Self-healing rubber. Numbered. Made in collaboration
+        with Opepen edition artists. Anchored on Ethereum. Shipped by hand.
       </Reveal>
 
-      <Reveal delay={0.2}>
+      <Reveal
+        as="p"
+        delay={0.15}
+        className="text-white/85 text-[13px] leading-relaxed italic mb-8"
+      >
+        Cut once. Heal twice.
+      </Reveal>
+
+      <Reveal delay={0.22}>
         <Link
           to="/login"
           className="inline-block border border-white/70 px-6 py-3 text-[11px] uppercase tracking-[0.22em] hover:bg-white hover:text-black transition"
         >
-          Click Here
+          Enter the Studio →
         </Link>
       </Reveal>
     </div>
@@ -100,6 +116,9 @@ export function ProgressContent({
         <h2 className="font-serif text-6xl md:text-6xl uppercase mb-3">
           Progress
         </h2>
+        <p className="text-white/85 text-[12px] italic mb-1">
+          A record of the cuts. And the healing.
+        </p>
         <p className="text-white/60 text-[12px] mb-10">
           What shipped, what changed, what was learned.
         </p>
