@@ -1,22 +1,23 @@
-import { ReactNode, useEffect, useRef } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 
 /**
- * StageCard — a resizable panel that "pops open on the stage" (the grid).
+ * StageCard — a draggable, resizable panel that lives on the stage grid.
  *
- *   ┌───────────────────────────────────┐   ← 1px border
- *   │ LABEL                        [ × ]│   ← 32px header row
- *   ├───────────────────────────────────┤
- *   │                                   │
- *   │  content                          │
- *   │                                   │
- *   │                              ⌟   │   ← native browser resize handle
- *   └───────────────────────────────────┘
+ * Two modes:
+ *   • Anchored: on tablet & mobile, or if the parent doesn't pass
+ *     position props, the card renders as an inline flex item. No drag,
+ *     no absolute positioning. Users just see a snug list of cards.
+ *   • Free-form: on desktop, the parent passes { x, y, w, h } in cells
+ *     and { onMove, onResize } handlers. The card sits absolutely inside
+ *     a stage container. Users drag the header to move; drag the
+ *     bottom-right handle to resize. Both actions snap to the 32-px
+ *     grid on mouseup.
  *
- * `resize: both` gives the browser's native resize handle at the
- * bottom-right corner. After the user releases the mouse, a document-
- * level mouseup listener snaps the card's width and height to the
- * nearest --cell multiple (32 px) so everything stays aligned to the
- * drafting grid. Min sizes are also expressed in cells.
+ * Header layout:
+ *   [ LABEL                                    × ]
+ *   flush-right X (no padding), left label with grid-aligned inset.
+ *
+ * Everything is a multiple of --cell (32 px) so panels stay on the grid.
  */
 
 const CELL = 32;
@@ -29,6 +30,19 @@ interface Props {
   onClose?: () => void;
   children: ReactNode;
   className?: string;
+
+  /** Free-form positioning (in cells). If any of these is undefined the
+      card renders in anchored mode (in-flow, no drag). */
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+  onMove?: (x: number, y: number) => void;
+  onResize?: (w: number, h: number) => void;
+  /** Called on drag start so the parent can bring this card to the front
+      (higher z-index). */
+  onFocus?: () => void;
+  zIndex?: number;
 }
 
 export default function StageCard({
@@ -37,67 +51,156 @@ export default function StageCard({
   onClose,
   children,
   className = "",
+  x,
+  y,
+  w,
+  h,
+  onMove,
+  onResize,
+  onFocus,
+  zIndex,
 }: Props) {
-  const cardRef = useRef<HTMLDivElement | null>(null);
+  const freeForm =
+    x !== undefined &&
+    y !== undefined &&
+    w !== undefined &&
+    h !== undefined &&
+    onMove &&
+    onResize;
 
-  // Snap the card to the grid on every document mouseup while this card
-  // is mounted. Cheap — only fires per click, and only touches this
-  // card's inline style if the dimensions differ from a grid multiple.
+  // Live drag/resize state — mutated during pointer moves, committed to
+  // the parent on mouseup.
+  const dragRef = useRef<null | {
+    kind: "move" | "resize";
+    startX: number;
+    startY: number;
+    origA: number; // origX or origW
+    origB: number; // origY or origH
+  }>(null);
+  const [ghost, setGhost] = useState<null | {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  }>(null);
+
   useEffect(() => {
-    function snap() {
-      const el = cardRef.current;
-      if (!el) return;
-      const w = el.offsetWidth;
-      const h = el.offsetHeight;
-      const snappedW = Math.max(MIN_W_CELLS * CELL, Math.round(w / CELL) * CELL);
-      const snappedH = Math.max(MIN_H_CELLS * CELL, Math.round(h / CELL) * CELL);
-      if (snappedW !== w) el.style.width = `${snappedW}px`;
-      if (snappedH !== h) el.style.height = `${snappedH}px`;
+    if (!freeForm) return;
+    function onMouseMove(e: MouseEvent) {
+      const d = dragRef.current;
+      if (!d) return;
+      const dx = Math.round((e.clientX - d.startX) / CELL);
+      const dy = Math.round((e.clientY - d.startY) / CELL);
+      if (d.kind === "move") {
+        setGhost({
+          x: Math.max(0, d.origA + dx),
+          y: Math.max(0, d.origB + dy),
+          w: w!,
+          h: h!,
+        });
+      } else {
+        setGhost({
+          x: x!,
+          y: y!,
+          w: Math.max(MIN_W_CELLS, d.origA + dx),
+          h: Math.max(MIN_H_CELLS, d.origB + dy),
+        });
+      }
     }
-    document.addEventListener("mouseup", snap);
-    return () => document.removeEventListener("mouseup", snap);
-  }, []);
+    function onMouseUp() {
+      const d = dragRef.current;
+      if (!d) return;
+      const g = ghost;
+      dragRef.current = null;
+      setGhost(null);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+      if (!g) return;
+      if (d.kind === "move") onMove?.(g.x, g.y);
+      else onResize?.(g.w, g.h);
+    }
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [freeForm, x, y, w, h, ghost, onMove, onResize]);
+
+  function startDrag(kind: "move" | "resize", e: React.MouseEvent) {
+    if (!freeForm) return;
+    e.preventDefault();
+    onFocus?.();
+    dragRef.current = {
+      kind,
+      startX: e.clientX,
+      startY: e.clientY,
+      origA: kind === "move" ? x! : w!,
+      origB: kind === "move" ? y! : h!,
+    };
+    setGhost({ x: x!, y: y!, w: w!, h: h! });
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = kind === "move" ? "grabbing" : "nwse-resize";
+  }
+
+  // Compose the outer style — either absolute (free-form) or inline flex.
+  const visibleX = ghost?.x ?? x;
+  const visibleY = ghost?.y ?? y;
+  const visibleW = ghost?.w ?? w;
+  const visibleH = ghost?.h ?? h;
+
+  const baseStyle: React.CSSProperties = freeForm
+    ? {
+        position: "absolute",
+        left: `calc(var(--cell) * ${visibleX})`,
+        top: `calc(var(--cell) * ${visibleY})`,
+        width: `calc(var(--cell) * ${visibleW})`,
+        height: `calc(var(--cell) * ${visibleH})`,
+        zIndex,
+        borderRadius: "2px",
+        background: "#1a1a1a",
+        transition: ghost
+          ? "none"
+          : "left 0.12s cubic-bezier(0.2, 0.8, 0.2, 1), top 0.12s cubic-bezier(0.2, 0.8, 0.2, 1), width 0.12s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.12s cubic-bezier(0.2, 0.8, 0.2, 1)",
+      }
+    : {
+        borderRadius: "2px",
+        background: "#1a1a1a",
+        width: "calc(var(--cell) * 10)",
+        maxWidth: "100%",
+      };
 
   return (
     <section
       id={id}
-      ref={cardRef}
       data-card={id}
-      className={`
-        stage-card relative flex flex-col
-        border border-white/15
-        scroll-mt-20
-        ${className}
-      `}
-      style={{
-        borderRadius: "2px",
-        // Resizable via native browser corner handle.
-        resize: "both",
-        overflow: "hidden",
-        // Sensible defaults (7 cells wide × 16 cells tall = 224 × 512 px)
-        // that also match the mockup card proportions.
-        width: "calc(var(--cell) * 8)",
-        height: "calc(var(--cell) * 18)",
-        minWidth: `${MIN_W_CELLS * CELL}px`,
-        minHeight: `${MIN_H_CELLS * CELL}px`,
-        background: "#1a1a1a",
-        transition:
-          "width 0.12s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.12s cubic-bezier(0.2, 0.8, 0.2, 1)",
-      }}
+      className={`stage-card flex flex-col border border-white/15 ${className}`}
+      style={baseStyle}
     >
+      {/* Header — drag handle in free-form mode. */}
       <header
-        className="flex items-center justify-between border-b border-white/15 px-4 shrink-0"
+        onMouseDown={freeForm ? (e) => startDrag("move", e) : undefined}
+        className={`
+          flex items-stretch justify-between border-b border-white/15 shrink-0 select-none
+          ${freeForm ? "cursor-grab active:cursor-grabbing" : ""}
+        `}
         style={{ height: "var(--cell)" }}
       >
-        <span className="text-[10px] uppercase tracking-[0.28em] text-white/70">
+        <span
+          className="text-[10px] uppercase tracking-[0.28em] text-white/70 flex items-center pl-4"
+        >
           {label}
         </span>
         {onClose && (
           <button
             type="button"
             onClick={onClose}
+            onMouseDown={(e) => e.stopPropagation()}
             aria-label={`Close ${label}`}
-            className="p-1 text-white/50 hover:text-white transition"
+            // Flush against the right edge — no horizontal padding, just
+            // a 32-px hit-target square that matches the header height.
+            className="text-white/50 hover:text-white transition flex items-center justify-center border-l border-white/15"
+            style={{ width: "var(--cell)", height: "var(--cell)" }}
           >
             <svg
               width="14"
@@ -121,6 +224,36 @@ export default function StageCard({
       >
         {children}
       </div>
+
+      {/* Custom resize handle — bottom-right, 24×24 hit area, chevron
+          glyph. Only rendered in free-form mode. */}
+      {freeForm && (
+        <button
+          type="button"
+          onMouseDown={(e) => startDrag("resize", e)}
+          aria-label={`Resize ${label}`}
+          className="absolute bottom-0 right-0 flex items-end justify-end text-white/40 hover:text-white/80 transition"
+          style={{
+            width: "24px",
+            height: "24px",
+            cursor: "nwse-resize",
+          }}
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.2"
+            aria-hidden
+          >
+            <line x1="6" y1="18" x2="18" y2="6" />
+            <line x1="11" y1="18" x2="18" y2="11" />
+            <line x1="16" y1="18" x2="18" y2="16" />
+          </svg>
+        </button>
+      )}
     </section>
   );
 }

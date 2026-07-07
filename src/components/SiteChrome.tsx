@@ -161,20 +161,38 @@ export default function SiteChrome({
       {/* ═══════════════════════════════════════════════════════════════
           PAGE CONTENT — flows inside the content area. Padding leaves
           room for the fixed chrome so content isn't hidden underneath.
+          The mobile paddingTop is larger because the logo is centered
+          below the hamburger (~112 px total) rather than tucked to the
+          top-right corner as it is on desktop.
           =══════════════════════════════════════════════════════════════ */}
       <div
-        className="relative z-10"
-        style={{
-          paddingTop: "calc(var(--cell) * 3)",
-          paddingRight: "var(--cell)",
-        }}
+        className="relative z-10 pt-32 xl:pt-24"
+        style={{ paddingRight: "var(--cell)" }}
       >
         {children}
+
+        {/* Mobile / tablet footer — rendered here (after content) so it
+            flows to the bottom of the page. Hidden on xl+ because there
+            the footer lives in the fixed top-right chrome instead. */}
+        {!hideFooter && <MobileFooter />}
       </div>
 
       {navOpen && (
         <NavOverlay variant={variant} onClose={() => setNavOpen(false)} />
       )}
+    </div>
+  );
+}
+
+/**
+ * Mobile / tablet footer wrapper — centers the footer card + badges at
+ * the bottom of the page.
+ */
+function MobileFooter() {
+  return (
+    <div className="xl:hidden flex flex-col items-center w-full mt-8 mb-6 px-4">
+      <FooterCard />
+      <FooterBadges />
     </div>
   );
 }
@@ -257,30 +275,37 @@ function NavItem({ item }: { item: NavLinkItem }) {
       </NavLink>
     );
   }
+  // Anchor items: use Link so we cross-navigate cleanly. If we're
+  // already on the base page, react-router still fires a navigation
+  // event which our page's location.key effect picks up to open the
+  // matching card.
   return (
-    <a href={item.href} className={className}>
+    <Link to={`${item.base}${item.href}`} className={className}>
       {item.label}
-    </a>
+    </Link>
   );
 }
 
 type NavLinkItem =
   | { kind: "route"; label: string; to: string }
-  | { kind: "anchor"; label: string; href: string };
+  | { kind: "anchor"; label: string; href: string; base: string };
 
+// `base` is the page the anchor lives on. Anchor Links use `${base}${href}`
+// so clicking "About" from /settings navigates to /dashboard#about (or
+// /#about for logged-out users) instead of dead-ending on /settings.
 const PUBLIC_NAV: NavLinkItem[] = [
   { kind: "route", label: "Home", to: "/" },
-  { kind: "anchor", label: "About", href: "#about" },
-  { kind: "anchor", label: "Progress", href: "#progress" },
-  { kind: "anchor", label: "Gallery", href: "#gallery" },
+  { kind: "anchor", label: "About", href: "#about", base: "/" },
+  { kind: "anchor", label: "Progress", href: "#progress", base: "/" },
+  { kind: "anchor", label: "Gallery", href: "#gallery", base: "/" },
 ];
 
 const PRIVATE_NAV: NavLinkItem[] = [
   { kind: "route", label: "Home", to: "/dashboard" },
-  { kind: "anchor", label: "About", href: "#about" },
-  { kind: "anchor", label: "Progress", href: "#progress" },
-  { kind: "anchor", label: "Gallery", href: "#gallery" },
-  { kind: "anchor", label: "Messaging", href: "#messaging" },
+  { kind: "anchor", label: "About", href: "#about", base: "/dashboard" },
+  { kind: "anchor", label: "Progress", href: "#progress", base: "/dashboard" },
+  { kind: "anchor", label: "Gallery", href: "#gallery", base: "/dashboard" },
+  { kind: "anchor", label: "Messaging", href: "#messaging", base: "/dashboard" },
   { kind: "route", label: "Settings", to: "/settings" },
 ];
 
@@ -340,14 +365,14 @@ function NavOverlay({
             );
           }
           return (
-            <a
+            <Link
               key={item.label}
-              href={item.href}
+              to={`${item.base}${item.href}`}
               onClick={onClose}
               className={linkClass}
             >
               {item.label}
-            </a>
+            </Link>
           );
         })}
 
@@ -375,30 +400,51 @@ function NavOverlay({
 // ============================================================================
 
 function TopRightLogo() {
-  // Pinned to the top-right corner of the GRID AREA (not the viewport).
-  // Sits one cell below the top chrome strip and one cell left of the
-  // right chrome strip. Painted rectangle background covers any grid
-  // lines that would otherwise cross the logo. Border ties it visually
-  // to the chrome frame.
+  // Desktop (xl+): pinned to the top-right corner of the GRID AREA
+  // (below the top chrome strip, left of the right chrome strip).
+  // Below xl: centered horizontally in the top chrome strip so it reads
+  // like a proper masthead on mobile / tablet.
   return (
-    <Link
-      to="/"
-      aria-label="Self-Healing — home"
-      className="fixed z-30 hover:opacity-80 transition-opacity block border border-white/15"
-      style={{
-        top: "var(--cell)",
-        right: "var(--cell)",
-        width: "calc(var(--cell) * 4)",
-        height: "calc(var(--cell) * 2)",
-        background: "#1a1a1a",
-      }}
-    >
-      <img
-        src="/logo.svg"
-        alt="Self-Healing"
-        className="w-full h-full object-contain p-1"
-      />
-    </Link>
+    <>
+      {/* Desktop */}
+      <Link
+        to="/"
+        aria-label="Self-Healing — home"
+        className="hidden xl:block fixed z-30 hover:opacity-80 transition-opacity border border-white/15"
+        style={{
+          top: "var(--cell)",
+          right: "var(--cell)",
+          width: "calc(var(--cell) * 4)",
+          height: "calc(var(--cell) * 2)",
+          background: "#1a1a1a",
+        }}
+      >
+        <img
+          src="/logo.svg"
+          alt="Self-Healing"
+          className="w-full h-full object-contain p-1"
+        />
+      </Link>
+
+      {/* Tablet + mobile — centered under the hamburger, in the chrome */}
+      <Link
+        to="/"
+        aria-label="Self-Healing — home"
+        className="xl:hidden fixed z-30 hover:opacity-80 transition-opacity border border-white/15 left-1/2 -translate-x-1/2"
+        style={{
+          top: "calc(var(--cell) * 1.5)",
+          width: "calc(var(--cell) * 4)",
+          height: "calc(var(--cell) * 2)",
+          background: "#1a1a1a",
+        }}
+      >
+        <img
+          src="/logo.svg"
+          alt="Self-Healing"
+          className="w-full h-full object-contain p-1"
+        />
+      </Link>
+    </>
   );
 }
 
@@ -407,17 +453,22 @@ function TopRightLogo() {
 // Straddles the right chrome strip boundary.
 // ============================================================================
 
+/**
+ * Desktop-only corner footer — stacks directly under the top-right logo
+ * with no gap between the footer card and the badges. The mobile
+ * equivalent (MobileFooter, above) is rendered inline at the bottom of
+ * the page content instead.
+ */
 function BottomRightFooter() {
   return (
     <div
-      className="fixed z-30 flex flex-col items-end"
+      className="hidden xl:flex fixed z-30 flex-col items-end"
       style={{
-        right: 0,
-        bottom: 0,
+        right: "var(--cell)",
+        top: "calc(var(--cell) * 3)",
       }}
     >
       <FooterCard />
-      <div style={{ height: "var(--cell)" }} />
       <FooterBadges />
     </div>
   );

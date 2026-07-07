@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import SiteChrome from "../components/SiteChrome";
 import StageCard from "../components/StageCard";
 import {
@@ -8,23 +9,20 @@ import {
   NewPostContent,
   ProgressContent,
 } from "../components/StageCards";
+import { useStageLayout, type CardLayout } from "../utils/useStageLayout";
 import { listGalleryImages, listPosts, subscribe } from "../utils/supabase";
 import { useAuth } from "../utils/useAuth";
 import type { GalleryImage, Post } from "../types";
 
 /**
- * Signed-in "Home". Same card-on-stage layout as the public / — About,
- * Progress, Gallery — plus a Messaging card and a New Update composer
- * visible only to collaborators. All cards can be closed via their header
- * X and reopened by clicking the corresponding nav link.
+ * Signed-in dashboard. Uses the same free-form-on-desktop /
+ * flow-on-smaller-screens stage layout as the public Home, plus a
+ * Messaging card and a New Update composer only collaborators see.
+ * Wider default panel sizes than the public page so chat + compose
+ * forms don't feel truncated.
  */
-type CardId =
-  | "about"
-  | "progress"
-  | "gallery"
-  | "messaging"
-  | "compose";
 
+type CardId = "compose" | "progress" | "gallery" | "messaging" | "about";
 const ALL_CARDS: CardId[] = [
   "compose",
   "progress",
@@ -33,6 +31,14 @@ const ALL_CARDS: CardId[] = [
   "about",
 ];
 
+const INITIAL_LAYOUT: CardLayout = {
+  compose: { x: 0, y: 0, w: 14, h: 18, z: 1 },
+  progress: { x: 14, y: 0, w: 18, h: 22, z: 2 },
+  messaging: { x: 32, y: 0, w: 20, h: 22, z: 3 },
+  gallery: { x: 0, y: 22, w: 16, h: 20, z: 4 },
+  about: { x: 16, y: 22, w: 16, h: 20, z: 5 },
+};
+
 export default function Dashboard() {
   const { session } = useAuth();
   const email = session?.email ?? "";
@@ -40,9 +46,16 @@ export default function Dashboard() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [images, setImages] = useState<GalleryImage[]>([]);
   const [openCards, setOpenCards] = useState<Set<CardId>>(
-    // Default to Progress + Messaging + compose open, others available.
+    // Default open: compose + progress + messaging (the collaborator
+    // workflow). About and Gallery are one nav-click away.
     new Set<CardId>(["compose", "progress", "messaging"]),
   );
+
+  const { layout, isDesktop, moveCard, resizeCard, focusCard } =
+    useStageLayout({
+      storageKey: "sh.layout.dashboard",
+      initial: INITIAL_LAYOUT,
+    });
 
   useEffect(() => {
     let cancelled = false;
@@ -84,38 +97,64 @@ export default function Dashboard() {
     setOpenCards((prev) => new Set(prev).add(id));
   }, []);
 
+  const location = useLocation();
+  useEffect(() => {
+    const hash = window.location.hash.replace("#", "") as CardId;
+    if (!hash) return;
+    if (ALL_CARDS.includes(hash)) {
+      open(hash);
+      setTimeout(() => {
+        history.replaceState(
+          null,
+          "",
+          window.location.pathname + window.location.search,
+        );
+      }, 400);
+    }
+  }, [location.key, open]);
   useEffect(() => {
     function handle() {
       const hash = window.location.hash.replace("#", "") as CardId;
-      if (!hash) return;
-      if (ALL_CARDS.includes(hash)) {
+      if (hash && ALL_CARDS.includes(hash)) {
         open(hash);
-        setTimeout(() => {
-          history.replaceState(
-            null,
-            "",
-            window.location.pathname + window.location.search,
-          );
-        }, 400);
       }
     }
-    handle();
     window.addEventListener("hashchange", handle);
     return () => window.removeEventListener("hashchange", handle);
   }, [open]);
 
+  const maxBottom = Math.max(
+    24,
+    ...Object.values(layout).map((b) => b.y + b.h),
+  );
+
+  // Card factory that wires the desktop free-form props for a given id.
+  function freeFormProps(id: CardId) {
+    if (!isDesktop) return {};
+    const box = layout[id];
+    if (!box) return {};
+    return {
+      x: box.x,
+      y: box.y,
+      w: box.w,
+      h: box.h,
+      zIndex: box.z,
+      onMove: (x: number, y: number) => moveCard(id, x, y),
+      onResize: (w: number, h: number) => resizeCard(id, w, h),
+      onFocus: () => focusCard(id),
+    };
+  }
+
   return (
     <SiteChrome variant="private">
-      {/* Flex-wrap layout so each card can be resized independently and
-          snaps to the underlying grid. Cards drop to a new row when they
-          can't fit horizontally. */}
       <div
-        className="flex flex-wrap items-start"
+        className={isDesktop ? "relative" : "flex flex-wrap items-start"}
         style={{
-          gap: "var(--cell)",
+          gap: isDesktop ? undefined : "var(--cell)",
           paddingLeft: "var(--cell)",
           paddingRight: "var(--cell)",
           paddingBottom: "calc(var(--cell) * 7)",
+          minHeight: isDesktop ? `calc(var(--cell) * ${maxBottom + 2})` : undefined,
         }}
       >
         {openCards.has("compose") && (
@@ -123,6 +162,7 @@ export default function Dashboard() {
             id="compose"
             label="New Update"
             onClose={() => close("compose")}
+            {...freeFormProps("compose")}
           >
             <NewPostContent authorEmail={email} />
           </StageCard>
@@ -132,6 +172,7 @@ export default function Dashboard() {
             id="progress"
             label="Progress"
             onClose={() => close("progress")}
+            {...freeFormProps("progress")}
           >
             <ProgressContent posts={posts} />
           </StageCard>
@@ -141,6 +182,7 @@ export default function Dashboard() {
             id="messaging"
             label="Messaging"
             onClose={() => close("messaging")}
+            {...freeFormProps("messaging")}
           >
             <MessagingContent currentEmail={email} />
           </StageCard>
@@ -150,12 +192,18 @@ export default function Dashboard() {
             id="gallery"
             label="Gallery"
             onClose={() => close("gallery")}
+            {...freeFormProps("gallery")}
           >
             <GalleryContent images={images} />
           </StageCard>
         )}
         {openCards.has("about") && (
-          <StageCard id="about" label="About" onClose={() => close("about")}>
+          <StageCard
+            id="about"
+            label="About"
+            onClose={() => close("about")}
+            {...freeFormProps("about")}
+          >
             <AboutContent />
           </StageCard>
         )}
