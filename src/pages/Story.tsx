@@ -109,7 +109,7 @@ export default function Story() {
             <p>
               These nine are not customers. They are the reason the project
               exists. Everyone who joins them is joining a community that
-              already believes in the power of handmade art.
+              already believes.
             </p>
           </Section>
 
