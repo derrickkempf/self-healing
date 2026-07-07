@@ -89,17 +89,35 @@ export async function listPosts(limit?: number): Promise<Post[]> {
 
 export async function deletePost(
   id: string,
-): Promise<{ error: string | null }> {
-  const { error } = await supabase.from("posts").delete().eq("id", id);
+): Promise<{ deleted: boolean; error: string | null }> {
+  // IMPORTANT: `.select()` after `.delete()` so PostgREST returns the
+  // deleted rows. If the RLS `delete` policy filters out the row (i.e.
+  // the client isn't the author, or the delete policy isn't installed
+  // yet), Supabase silently returns success with `data = []`. Without
+  // this check the UI would think the delete worked while nothing
+  // actually happened server-side.
+  const { data, error } = await supabase
+    .from("posts")
+    .delete()
+    .eq("id", id)
+    .select();
   if (error) {
     console.error(
       "[supabase] deletePost FAILED",
       { code: error.code, message: error.message, details: error.details, hint: error.hint },
       error,
     );
-    return { error: formatSupabaseError(error) };
+    return { deleted: false, error: formatSupabaseError(error) };
   }
-  return { error: null };
+  const deleted = Array.isArray(data) && data.length > 0;
+  if (!deleted) {
+    return {
+      deleted: false,
+      error:
+        "Nothing was deleted. Either you're not the author of this update, or the delete RLS policy hasn't been applied in Supabase yet.",
+    };
+  }
+  return { deleted: true, error: null };
 }
 
 export async function createPost(input: {
@@ -148,17 +166,29 @@ export async function listMessages(): Promise<Message[]> {
 
 export async function deleteMessage(
   id: string,
-): Promise<{ error: string | null }> {
-  const { error } = await supabase.from("messages").delete().eq("id", id);
+): Promise<{ deleted: boolean; error: string | null }> {
+  const { data, error } = await supabase
+    .from("messages")
+    .delete()
+    .eq("id", id)
+    .select();
   if (error) {
     console.error(
       "[supabase] deleteMessage FAILED",
       { code: error.code, message: error.message, details: error.details, hint: error.hint },
       error,
     );
-    return { error: formatSupabaseError(error) };
+    return { deleted: false, error: formatSupabaseError(error) };
   }
-  return { error: null };
+  const deleted = Array.isArray(data) && data.length > 0;
+  if (!deleted) {
+    return {
+      deleted: false,
+      error:
+        "Nothing was deleted. Either this isn't your message, or the delete RLS policy hasn't been applied in Supabase yet.",
+    };
+  }
+  return { deleted: true, error: null };
 }
 
 export async function sendMessage(

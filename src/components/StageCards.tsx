@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import Reveal from "./Reveal";
 import type { GalleryImage, Message, Post, Profile } from "../types";
@@ -84,11 +85,13 @@ export function ProgressContent({
 
   async function handleDelete(id: string) {
     if (!confirm("Delete this update? This can't be undone.")) return;
-    const { error } = await deletePost(id);
-    if (error) {
-      alert("Couldn't delete: " + error);
+    const { deleted, error } = await deletePost(id);
+    if (!deleted) {
+      alert("Couldn't delete: " + (error ?? "unknown error"));
+      return;
     }
-    // Realtime subscription will remove the row from state.
+    // Realtime subscription will remove the row from state; nothing to
+    // do here on success.
   }
 
   return (
@@ -339,6 +342,12 @@ function GalleryTile({
 /**
  * Full-screen lightbox for viewing an uploaded image at its native
  * resolution. Click backdrop or press Esc to close.
+ *
+ * Rendered via a React portal directly on document.body so it isn't
+ * trapped inside the StageCard stacking context (Cards use
+ * position:absolute + their own z-index, which would otherwise cap the
+ * modal's z-[80] and let sibling cards float on top of it). Portalling
+ * escapes all ancestor stacking contexts, so z-[80] wins outright.
  */
 function Lightbox({
   image,
@@ -359,7 +368,7 @@ function Lightbox({
     };
   }, [onClose]);
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -401,7 +410,8 @@ function Lightbox({
           {image.caption}
         </p>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -629,8 +639,15 @@ export function MessagingContent({ currentEmail }: { currentEmail: string }) {
                               ) {
                                 return;
                               }
-                              const { error } = await deleteMessage(m.id);
-                              if (error) alert("Couldn't delete: " + error);
+                              const { deleted, error } = await deleteMessage(
+                                m.id,
+                              );
+                              if (!deleted) {
+                                alert(
+                                  "Couldn't delete: " +
+                                    (error ?? "unknown error"),
+                                );
+                              }
                             }}
                             className="text-white/40 hover:text-red-300 transition opacity-0 group-hover:opacity-100"
                             aria-label="Delete message"
