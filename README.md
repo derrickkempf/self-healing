@@ -1,129 +1,153 @@
 # Self-Healing
 
-A dual-purpose web app for tracking Self-Healing Mats production progress: a public landing page plus a private collaborator dashboard with feed, group chat, and settings.
+*A cutting mat is a base layer for healing. It takes the blade so the work can continue.*
+
+Self-Healing is a small-batch, matte-black, self-healing cutting mat made in collaboration with Opepen edition artists and their collectors. This repository holds the website behind the project — the public journal, the collector dashboard, and the drop announcements.
+
+Live at **[self-healing.art](https://self-healing.art)**.
+
+---
+
+## What's in the box
+
+The site is a small React SPA that acts as both a public storefront and a private studio journal:
+
+- **Public — landing.** A three-card stage (About, Progress, Gallery) rendered on a 32-px drafting grid. Cards can be dragged and resized like desktop windows.
+- **Public — Story.** Long-form narrative about how the project started and why.
+- **Public — Notify.** A one-field email capture for people who want a note when the next drop opens.
+- **Private — Dashboard.** Collectors and collaborators sign in via email OTP, publish updates, chat, and manage a shared gallery. Everything they publish appears on the public Progress feed in real time.
+
+---
+
+## Features
+
+- Grid-based, drag-and-resize card layout — every measurement snaps to the 32-px cell.
+- Realtime Progress feed powered by Supabase Postgres change subscriptions.
+- Email-OTP auth via Supabase, with an allow-list table (nine collaborators, currently).
+- Live in-app chat between collaborators, with avatars, replies, and an emoji picker.
+- CSS-only drafting-grid background with a fixed diagonal accent line.
+- Masonry gallery with lazy-loaded, blur-up image reveals and a lightbox on click.
+- Delete affordances on your own updates and messages; RLS-enforced ownership.
+- Fully responsive: desktop uses a free-form draggable stage; tablet and mobile fall back to a flex-wrap flow with a hamburger drawer nav.
+- Fonts self-hosted from `public/fonts/` (CMU Typewriter Text) plus Instrument Serif from Google Fonts.
+- Custom intro overlay animation on first visit each session.
+
+---
 
 ## Stack
 
-- Vite + React 18 + TypeScript
-- React Router v6
-- Tailwind CSS
-- Instrument Serif (headlines) + Geist Mono (body/UI) via Google Fonts
-- **Backend: Supabase** — Postgres + Auth (email OTP) + Realtime
+- **Vite** + **React 18** + **TypeScript**
+- **React Router v6** for routing
+- **Tailwind CSS** for utility styling
+- **GSAP** for the intro-overlay animation
+- **Supabase** for auth, Postgres data, storage, and realtime subscriptions
+- **Vercel** for deploy
 
-## Quick start
-
-```bash
-npm install
-cp .env.example .env.local       # then fill in your Supabase values
-npm run dev                       # http://localhost:5173
-```
-
-Then visit `/` for the public landing page or `/login` to sign in. See "Setting up Supabase" below for first-time backend setup.
-
-### Signing in
-
-The login screen asks for your email, calls `supabase.auth.signInWithOtp`, and Supabase emails you a 6-digit code. Enter it on the next screen to start a session.
-
-If `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are unset (e.g. a fresh checkout with no `.env.local`), the login flow falls back to a dev-only path that prints the code to the console and a "Dev mode" panel — useful for demoing the UI before Supabase is provisioned.
-
-## Build
-
-```bash
-npm run build        # outputs to dist/
-npm run preview      # serve the production build locally
-```
+---
 
 ## Project structure
 
 ```
 src/
   pages/
-    Home.tsx         public landing — hero, progress feed, gallery, CTA
-    Login.tsx        email-OTP sign-in flow
-    Dashboard.tsx    private feed + New Post modal
-    Chat.tsx         private group chat
-    Settings.tsx     profile, account, notifications, gallery
+    Home.tsx           Public landing (three-card stage)
+    Story.tsx          Long-form narrative
+    Notify.tsx         Public email capture
+    Login.tsx          Email-OTP sign-in for collaborators
+    Dashboard.tsx      Signed-in stage (adds Compose + Messaging cards)
+    Chat.tsx           Standalone messaging route (kept for deep links)
+    Settings.tsx       Profile / account / notifications
   components/
-    CornerNav.tsx    corner-pinned landing-page nav
-    Header.tsx       dashboard / chat / settings header
-    AuthGuard.tsx    redirects unauthenticated users to /login
-    IntroOverlay.tsx one-shot boot animation
-    PostForm.tsx     modal: title / content / image upload
-    PostFeed.tsx     newest-first list of posts
-    ChatThread.tsx   message list + composer, auto-scroll
-    FAQ.tsx          accordion
-    Reveal.tsx       intersection-observer fade-up wrapper
+    SiteChrome.tsx     Full page shell — chrome, nav, logo, footer, grid
+    StageCard.tsx      Draggable, resizable panel used across the stage
+    StageCards.tsx     Card content: About, Progress, Gallery, Messaging, New Update
+    IntroOverlay.tsx   One-shot intro animation
+    PageTransition.tsx Cross-route fade
+    Reveal.tsx         Intersection-observer fade-up wrapper
+    FAQ.tsx            Accordion (currently unused, kept for future)
   utils/
-    supabaseClient.ts createClient(...) singleton
-    supabase.ts       async wrappers: posts, messages, profiles, gallery, prefs
-    auth.ts           signInWithOtp + verifyOtp wrappers, whitelist check
-    useAuth.ts        React hook for reactive session state
-    notifications.ts  browser-notification listener
-    reveal-gate.ts    coordinates reveals during intro / page transitions
+    supabaseClient.ts  Shared Supabase client
+    supabase.ts        Async wrappers: posts, messages, profiles, gallery,
+                       prefs, signups
+    auth.ts            Sign-in / sign-out helpers (email OTP)
+    useAuth.ts         Reactive session hook
+    useStageLayout.ts  Per-card position/size state with localStorage
+    notifications.ts   Browser-notification listener
+    reveal-gate.ts     Coordinates reveals during intro / page transitions
   styles/
-    globals.css       Tailwind layers + base styling
+    globals.css        Tailwind layers + fonts + background grid + base
   types/
-    index.ts          shared TS interfaces
+    index.ts           Shared TypeScript interfaces
 supabase/
-  schema.sql          run this in the Supabase SQL editor
+  schema.sql           Database schema + RLS policies (see below)
+public/
+  fonts/               CMU Typewriter Text (all weights + italics)
+  badges/              Created-by-hand + Built-on-Ethereum SVGs
+  logo.svg             Wordmark
 ```
 
-## Setting up Supabase
+---
 
-1. **Create a Supabase project** at https://supabase.com/dashboard.
-
-2. **Run the schema.** Open Supabase Dashboard → SQL Editor → New Query → paste the entire contents of `supabase/schema.sql` → Run. This creates the `whitelist`, `posts`, `messages`, `profiles`, `gallery_images`, and `notification_prefs` tables, enables Row Level Security, and turns on Realtime for the relevant tables.
-
-3. **Add yourself to the whitelist.** In the SQL editor, run:
-   ```sql
-   insert into public.whitelist (email) values ('you@example.com')
-     on conflict (email) do nothing;
-   ```
-   The schema seeds `dk@derrickkempf.com` already — edit or add as needed.
-
-4. **Copy the project URL + anon key** from Project Settings → API.
-
-5. **Set local env vars** by copying `.env.example` to `.env.local` and filling in:
-   ```
-   VITE_SUPABASE_URL=https://YOURPROJECT.supabase.co
-   VITE_SUPABASE_ANON_KEY=eyJhb...
-   VITE_WHITELISTED_EMAILS=you@example.com,collab2@example.com
-   ```
-   (The client-side `VITE_WHITELISTED_EMAILS` is for fast "not authorized" UX. The server-side `whitelist` table is the actual gate via RLS.)
-
-6. **Run `npm run dev`** and try signing in with your whitelisted email — you should receive a 6-digit code in your inbox within a few seconds.
-
-### Email delivery
-
-Supabase Auth uses its built-in SMTP relay by default, which is rate-limited and meant for development. For production volumes, configure your own SMTP in Authentication → Email Templates / SMTP Settings (SendGrid, Resend, AWS SES — any provider works).
-
-The OTP email template lives in Authentication → Email Templates → Magic Link / OTP. The default copy is fine; tweak it to match the app's voice.
-
-## Deploying to Vercel
+## Local development
 
 ```bash
-# after pushing to GitHub:
-vercel
-# or click Import in the Vercel dashboard
+npm install
+cp .env.example .env.local          # then fill in your own Supabase values
+npm run dev                          # http://localhost:5173
 ```
 
-A `vercel.json` is included that rewrites all paths to `index.html` so React Router's client-side routing works on refresh.
+You will need a Supabase project of your own for local dev — see the setup section below.
 
-Set the same env vars (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_WHITELISTED_EMAILS`) in Vercel's project settings.
+Available scripts:
 
-## Whitelist
+- `npm run dev` — Vite dev server with HMR
+- `npm run build` — production build to `dist/`
+- `npm run preview` — serve the production build locally
+- `npm run lint` — TypeScript strict-mode type-check (no output on success)
 
-Two layers:
+---
 
-1. **Client-side:** `VITE_WHITELISTED_EMAILS` (comma-separated) gates the UI so a non-allowed user gets an immediate "not authorized" message instead of an email they couldn't use anyway.
-2. **Server-side (the real gate):** the `whitelist` table + `is_whitelisted()` Postgres function are referenced by Row Level Security policies on every writable table. To admit a new collaborator, insert their email into `whitelist`:
-   ```sql
-   insert into public.whitelist (email) values ('new@example.com');
-   ```
-   No app redeploy required.
+## Backend setup
 
-## Notes & caveats
+The site runs on Supabase for auth, storage, and realtime. To point this project at a Supabase instance of your own:
 
-- Sessions are stored by `@supabase/supabase-js` in localStorage under `sb-<project>-auth-token` and auto-refresh.
-- Images (post photos, avatars, gallery uploads) are still encoded as base64 data URLs and stored in TEXT columns. This is fine for the small volume this project sees; for larger libraries migrate to a Supabase Storage bucket and store public URLs instead.
-- The notification listener in `utils/notifications.ts` is in-tab only — for true server-driven email digests, add a Supabase Edge Function that reads `notification_prefs` and fans out via your SMTP provider.
+1. **Create a Supabase project** at [supabase.com/dashboard](https://supabase.com/dashboard).
+2. **Run the schema.** SQL Editor → paste the contents of `supabase/schema.sql` → Run.
+3. **Add allow-listed emails** to the `whitelist` table for anyone who should be able to sign in as a collaborator.
+4. **Copy your project URL + `anon` public key** from Project Settings → API.
+5. **Set env vars** by copying `.env.example` to `.env.local` and filling them in.
+
+Read the top of `supabase/schema.sql` for a full walkthrough of what each table does and the RLS policies that guard it.
+
+---
+
+## Deploying
+
+The project is set up to deploy to Vercel with zero configuration. A `vercel.json` at the repo root handles SPA rewrites so React Router works on refresh.
+
+1. Push to GitHub.
+2. Import the repo on [vercel.com](https://vercel.com).
+3. Set the three `VITE_*` env vars under Project → Settings → Environment Variables.
+4. Trigger a deploy.
+
+---
+
+## Design system
+
+The site is built on a 32-pixel cell. Everything — the background grid, the card sizes, the logo box, the chrome strips, the footer card, the badges — is a multiple of that unit.
+
+- **Base color:** `#1a1a1a` charcoal
+- **Text:** white at three opacities (`#ffffff`, `#ffffff70`, `#ffffff45`)
+- **Lines:** `rgba(255, 255, 255, 0.15)` for borders, `0.10` for the grid
+- **Type:** *Instrument Serif* for display, *CMU Typewriter Text* for everything else
+- **Grid unit:** exposed as `--cell: 32px` in CSS
+
+---
+
+## License
+
+Code in this repository is available for reference. If you want to reuse substantial parts of the design, layout, or brand voice — say hi first.
+
+---
+
+*Custom craft cutting mats. Made in collaboration with Opepen edition artists. A public art protocol on Ethereum.*

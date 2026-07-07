@@ -34,8 +34,8 @@ export function AboutContent() {
         delay={0.05}
         className="text-white/70 text-[13px] leading-relaxed mb-4"
       >
-        A cutting mat is a base layer. It takes the blade so the work can
-        continue. We build ours for founders — the people making things that
+        A cutting mat is a base layer for healing. It takes the blade so the
+        work can continue. This mat is built for the people making things that
         don&apos;t exist yet, and healing from the making at the same time.
       </Reveal>
 
@@ -44,24 +44,25 @@ export function AboutContent() {
         delay={0.1}
         className="text-white/70 text-[13px] leading-relaxed mb-4"
       >
-        Matte black. A3. Self-healing rubber. Numbered. Made in collaboration
-        with Opepen edition artists. Anchored on Ethereum. Shipped by hand.
+        Matte black on one side. Green on the other. A3. Self-healing rubber.
+        Numbered. Hand signed. Made in collaboration with Opepen edition
+        artists and collectors.
       </Reveal>
 
       <Reveal
         as="p"
         delay={0.15}
-        className="text-white/85 text-[13px] leading-relaxed italic mb-8"
+        className="text-white/70 text-[13px] leading-relaxed mb-8"
       >
-        Cut once. Heal twice.
+        Created by hand. Built on Ethereum.
       </Reveal>
 
       <Reveal delay={0.22}>
         <Link
-          to="/login"
+          to="/story"
           className="inline-block border border-white/70 px-6 py-3 text-[11px] uppercase tracking-[0.22em] hover:bg-white hover:text-black transition"
         >
-          Enter the Studio →
+          Discover More →
         </Link>
       </Reveal>
     </div>

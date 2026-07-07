@@ -8,7 +8,7 @@ export default function Chat() {
   return (
     <SiteChrome variant="private">
       <main
-        className="mx-auto max-w-3xl w-full flex flex-col"
+        className="mx-auto max-w-3xl w-full flex flex-col pointer-events-auto"
         style={{
           paddingLeft: "var(--cell)",
           paddingRight: "var(--cell)",

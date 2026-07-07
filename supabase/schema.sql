@@ -124,6 +124,19 @@ create index if not exists gallery_position_idx
   on public.gallery_images (position);
 
 -- ============================================================================
+-- signups (public notify list)
+-- ============================================================================
+-- Public opt-in list for drop notifications. Anyone can add themselves;
+-- nobody except the schema owner can read the list. Read from the SQL
+-- editor when it's time to send a drop announcement.
+
+create table if not exists public.signups (
+  email      text primary key,
+  created_at timestamptz not null default now(),
+  source     text
+);
+
+-- ============================================================================
 -- notification_prefs
 -- ============================================================================
 
@@ -159,6 +172,13 @@ alter table public.profiles           enable row level security;
 alter table public.gallery_images     enable row level security;
 alter table public.notification_prefs enable row level security;
 alter table public.whitelist          enable row level security;
+alter table public.signups            enable row level security;
+
+-- signups — anonymous INSERT only. Nobody can SELECT / UPDATE / DELETE
+-- from the client (the founder reads via the SQL editor).
+drop policy if exists "signups: public insert" on public.signups;
+create policy "signups: public insert" on public.signups
+  for insert to anon, authenticated with check (true);
 
 -- posts
 drop policy if exists "posts: public read"     on public.posts;

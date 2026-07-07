@@ -87,6 +87,39 @@ export async function listPosts(limit?: number): Promise<Post[]> {
   return (data ?? []) as Post[];
 }
 
+// ---------- signups (public notify list) ----------
+//
+// Anyone can submit an email to the notify list — no auth required.
+// The RLS policy allows anonymous INSERT into public.signups with no
+// SELECT / UPDATE / DELETE from the client. The list is read only via
+// the SQL editor by the founder.
+
+export async function submitSignup(
+  email: string,
+): Promise<{ ok: boolean; error: string | null }> {
+  const normalized = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+    return { ok: false, error: "Enter a valid email address." };
+  }
+  const { error } = await supabase
+    .from("signups")
+    .insert({ email: normalized });
+  if (error) {
+    // 23505 = duplicate key (already on list). Treat as success — no
+    // reason to make the user re-submit or feel like they "failed".
+    if (error.code === "23505") {
+      return { ok: true, error: null };
+    }
+    console.error(
+      "[supabase] submitSignup FAILED",
+      { code: error.code, message: error.message, details: error.details },
+      error,
+    );
+    return { ok: false, error: formatSupabaseError(error) };
+  }
+  return { ok: true, error: null };
+}
+
 export async function deletePost(
   id: string,
 ): Promise<{ deleted: boolean; error: string | null }> {

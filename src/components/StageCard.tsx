@@ -174,7 +174,10 @@ export default function StageCard({
     <section
       id={id}
       data-card={id}
-      className={`stage-card flex flex-col border border-white/15 ${className}`}
+      // pointer-events-auto opts the card back in — its parent wrapper
+      // in SiteChrome has pointer-events: none so gaps between cards
+      // pass clicks through to the logo underneath.
+      className={`stage-card flex flex-col border border-white/15 pointer-events-auto ${className}`}
       style={baseStyle}
     >
       {/* Header — drag handle in free-form mode. */}

@@ -163,9 +163,16 @@ export default function SiteChrome({
           room for the fixed chrome so content isn't hidden underneath.
           On mobile the logo is now part of the bottom cluster, so top
           padding only needs to clear the hamburger + top chrome strip.
+          `pointer-events: none` on the wrapper lets clicks pass through
+          to the chrome underneath (logo, corner links); each interactive
+          descendant (card, button, form) opts back in with the
+          `pointer-events-auto` class. Without this the wrapper's z-10
+          intercepts every click that lands outside a card, and the
+          logo — which sits at z-[2] to allow cards to float above it —
+          becomes non-clickable.
           =══════════════════════════════════════════════════════════════ */}
       <div
-        className="relative z-10 pt-14 xl:pt-24"
+        className="relative z-10 pt-14 xl:pt-24 pointer-events-none"
         style={{ paddingRight: "var(--cell)" }}
       >
         {children}
@@ -189,8 +196,10 @@ export default function SiteChrome({
  * bottom of the page.
  */
 function MobileFooter() {
+  // pointer-events-auto so the inline mobile logo + cluster remains
+  // interactive even inside SiteChrome's pointer-events: none wrapper.
   return (
-    <div className="xl:hidden flex flex-col items-center w-full mt-8 mb-6 px-4">
+    <div className="xl:hidden flex flex-col items-center w-full mt-8 mb-6 px-4 pointer-events-auto">
       <InlineLogo />
       <FooterCard />
       <FooterBadges />
@@ -311,9 +320,10 @@ type NavLinkItem =
 // /#about for logged-out users) instead of dead-ending on /settings.
 const PUBLIC_NAV: NavLinkItem[] = [
   { kind: "route", label: "Home", to: "/" },
-  { kind: "anchor", label: "About", href: "#about", base: "/" },
+  { kind: "route", label: "Story", to: "/story" },
   { kind: "anchor", label: "Progress", href: "#progress", base: "/" },
   { kind: "anchor", label: "Gallery", href: "#gallery", base: "/" },
+  { kind: "route", label: "Notify", to: "/notify" },
 ];
 
 const PRIVATE_NAV: NavLinkItem[] = [

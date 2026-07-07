@@ -150,7 +150,7 @@ export default function Login() {
 
   return (
     <SiteChrome>
-      <main className="min-h-screen flex items-center justify-center px-6 py-24">
+      <main className="min-h-screen flex items-center justify-center px-6 py-24 pointer-events-auto">
         <div className="w-full max-w-[440px]">
           {step === "email" ? (
             <form

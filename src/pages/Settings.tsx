@@ -58,7 +58,7 @@ export default function Settings() {
   return (
     <SiteChrome variant="private">
       <main
-        className="mx-auto max-w-5xl w-full flex-1"
+        className="mx-auto max-w-5xl w-full flex-1 pointer-events-auto"
         style={{
           paddingLeft: "var(--cell)",
           paddingRight: "var(--cell)",
