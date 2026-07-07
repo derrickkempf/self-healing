@@ -46,7 +46,7 @@ export default function Story() {
             </h1>
             <p className="text-white/60 text-[13px] leading-relaxed mb-10 max-w-xl">
               A living journal of the materials, methods, and milestones
-              behind Self-Healing — a small-batch cutting mat made in
+              behind Self-Healing ... a small-batch cutting mat made in
               collaboration with Opepen edition artists and collectors.
               A public art protocol on Ethereum, now in your studio.
             </p>
