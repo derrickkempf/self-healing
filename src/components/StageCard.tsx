@@ -164,10 +164,15 @@ export default function StageCard({
           : "left 0.12s cubic-bezier(0.2, 0.8, 0.2, 1), top 0.12s cubic-bezier(0.2, 0.8, 0.2, 1), width 0.12s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.12s cubic-bezier(0.2, 0.8, 0.2, 1)",
       }
     : {
+        // Non-desktop (mobile/tablet) mode: fill the flex row (parent
+        // has 1-cell padding on both sides, so the card's edges land
+        // on grid lines). Height is capped at 20 cells so a card with
+        // a lot of content — like the gallery or a long Progress feed
+        // — scrolls INSIDE the card instead of stretching the page.
         borderRadius: "2px",
         background: "#1a1a1a",
-        width: "calc(var(--cell) * 10)",
-        maxWidth: "100%",
+        width: "100%",
+        maxHeight: "calc(var(--cell) * 20)",
       };
 
   return (

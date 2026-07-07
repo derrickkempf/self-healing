@@ -46,8 +46,8 @@ export default function Story() {
             </h1>
             <p className="text-white/60 text-[13px] leading-relaxed mb-10 max-w-xl">
               A living journal of the materials, methods, and milestones
-              behind Self-Healing ... a small-batch cutting mat made in
-              collaboration with Opepen edition artists and collectors.
+              behind Self-Healing — a small-batch cutting mat made in
+              collaboration with Opepen edition artists and their collectors.
               A public art protocol on Ethereum, now in your studio.
             </p>
           </Reveal>
@@ -55,8 +55,9 @@ export default function Story() {
           <Section title="How it started" delay={0.1}>
             <p>
               On July 10, 2025, nine collectors put 0.069 ETH each in front
-              of an idea: a physical Opepen Edition product. Not another JPG.
-              A working art tool. A cutting mat for your desk and for use.
+              of an idea: an Opepen edition made physical. Not another print.
+              Not a mockup. A working object — a cutting mat you could put
+              on your desk and use.
             </p>
             <p>
               Nine people said yes. That&apos;s what made this real.
@@ -71,19 +72,16 @@ export default function Story() {
               runs for anyone who wants to join them.
             </p>
             <p>
-              Every mat is designed and made in small batches, signed, and
-              shipped from my studio. Every mat is anchored on Ethereum with
-              a public record ... mint date, edition number, owner history.
+              Every mat is made by hand in small batches, shipped from a
+              studio, and signed. Every mat is anchored on Ethereum with a
+              public record — mint date, edition number, owner history.
             </p>
           </Section>
 
           <Section title="Why Opepen" delay={0.2}>
             <p>
-              Opepen Edition is a public art protocol on Ethereum by
-              Visualize Value. Creators submit their interpretations of the
-              Opepen silhouette. Collectors vote on the artwork to include
-              in the permanent collection. There are 200 spots. Editions are
-              minted, held, and traded, but they have mostly lived as
+              Opepen is a public art protocol on Ethereum. Editions are
+              minted, held, and traded — but they have mostly lived as
               digital images or paper prints. Bringing an edition into a
               functional, physical object was untested.
             </p>
@@ -95,20 +93,20 @@ export default function Story() {
             </p>
             <p>
               This is what an Opepen edition can be when it steps off the
-              screen and starts in your hands.
+              screen.
             </p>
           </Section>
 
           <Section title="Community made this" delay={0.25}>
             <p>
-              This project was initiated as an open edition. Nine people
-              pledged support to make this happen. Thank you to Jack Butcher,
-              BubbleBullQ, BORED, Jon Spitz, PIV, Slander, Akin Sawyerr,
-              Carmstro, and LikeLewis for making this possible.
+              Every step of this project was decided in public. The
+              artwork, the material, the color, the run size, the ship
+              date — all discussed with the nine, then documented on the
+              Progress feed for everyone else to see.
             </p>
             <p>
-              These nine are not customers. They are the reason the project
-              exists. Everyone who joins them is joining a community that
+              The nine are not customers. They are the reason the project
+              exists. Everyone who joins after them joins a community that
               already believes.
             </p>
           </Section>
@@ -118,13 +116,13 @@ export default function Story() {
               Drop 001 ships to the founding nine.
             </p>
             <p>
-              Drop 002 opens for public pre-order shortly after (a small,
-              numbered run for anyone on the notify list).
+              Drop 002 opens for public pre-order shortly after — a small,
+              numbered run for anyone on the notify list.
             </p>
             <p>
-              Later drops may introduce new artist collaborations, new
+              Later drops will introduce new artist collaborations, new
               colorways, new editions. Each one made by hand. Each one
-              anchored on-chain. Each one a new chapter.
+              anchored on-chain. Each one a chapter.
             </p>
           </Section>
 
@@ -155,9 +153,10 @@ export default function Story() {
 }
 
 /**
- * Section — small heading + body paragraph(s). The heading is a mono
- * small-caps label so it reads as a chapter mark, not a magazine
- * headline. Body paragraphs are 13px white/70 with generous leading.
+ * Section — chapter heading + body paragraph(s). Heading is now a
+ * substantial mono display line (26 px, tight letter-spacing, full
+ * white) so each chapter reads as a section break, not a footnote.
+ * Body paragraphs remain 13 px white/70 with generous leading.
  */
 function Section({
   title,
@@ -169,8 +168,16 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <Reveal className="mb-10" delay={delay}>
-      <h2 className="text-[10px] uppercase tracking-[0.28em] text-white/50 mb-4">
+    <Reveal className="mb-12" delay={delay}>
+      <h2
+        className="uppercase mb-5"
+        style={{
+          fontSize: "26px",
+          letterSpacing: "0.03em",
+          color: "#ffffff",
+          lineHeight: 1.1,
+        }}
+      >
         {title}
       </h2>
       <div className="text-white/70 text-[13px] leading-relaxed space-y-4 max-w-xl">

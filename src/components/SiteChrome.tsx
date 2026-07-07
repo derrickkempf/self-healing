@@ -196,10 +196,21 @@ export default function SiteChrome({
  * bottom of the page.
  */
 function MobileFooter() {
-  // pointer-events-auto so the inline mobile logo + cluster remains
-  // interactive even inside SiteChrome's pointer-events: none wrapper.
+  // Chrome cluster on mobile — logo + info card + badges, centered
+  // horizontally with grid-multiple padding + margins so the block
+  // snaps to the drafting grid the same way desktop cards do.
+  // pointer-events-auto so it remains interactive even inside
+  // SiteChrome's pointer-events: none wrapper.
   return (
-    <div className="xl:hidden flex flex-col items-center w-full mt-8 mb-6 px-4 pointer-events-auto">
+    <div
+      className="xl:hidden flex flex-col items-center w-full pointer-events-auto"
+      style={{
+        marginTop: "calc(var(--cell) * 2)",
+        marginBottom: "calc(var(--cell) * 2)",
+        paddingLeft: "var(--cell)",
+        paddingRight: "var(--cell)",
+      }}
+    >
       <InlineLogo />
       <FooterCard />
       <FooterBadges />
