@@ -13,6 +13,7 @@ import {
 import { useStageLayout, type CardLayout } from "../utils/useStageLayout";
 import { listGalleryImages, listPosts, subscribe } from "../utils/supabase";
 import { useAuth } from "../utils/useAuth";
+import { useIsAdmin } from "../utils/useIsAdmin";
 import type { GalleryImage, Post } from "../types";
 
 /**
@@ -59,6 +60,11 @@ const INITIAL_LAYOUT: CardLayout = {
 export default function Dashboard() {
   const { session } = useAuth();
   const email = session?.email ?? "";
+  // Only site admins (rows in public.admins) can see and use the
+  // Content CMS card. Everyone else sees the four core cards. The
+  // DB-side RLS enforces the same rule server-side — this is purely
+  // for a clean UX.
+  const { isAdmin } = useIsAdmin();
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [images, setImages] = useState<GalleryImage[]>([]);
@@ -173,13 +179,19 @@ export default function Dashboard() {
   return (
     <SiteChrome variant="private">
       <div
-        className={isDesktop ? "relative" : "flex flex-wrap items-start"}
+        className={
+          isDesktop
+            ? "relative"
+            : "flex flex-wrap items-start px-3 md:px-8"
+        }
         style={{
           gap: isDesktop ? undefined : "var(--cell)",
-          paddingLeft: "var(--cell)",
-          paddingRight: "var(--cell)",
+          paddingLeft: isDesktop ? "var(--cell)" : undefined,
+          paddingRight: isDesktop ? "var(--cell)" : undefined,
           paddingBottom: "calc(var(--cell) * 7)",
-          minHeight: isDesktop ? `calc(var(--cell) * ${maxBottom + 2})` : undefined,
+          minHeight: isDesktop
+            ? `calc(var(--cell) * ${maxBottom + 2})`
+            : undefined,
         }}
       >
         {openCards.has("compose") && (
@@ -232,7 +244,7 @@ export default function Dashboard() {
             <AboutContent />
           </StageCard>
         )}
-        {openCards.has("content") && (
+        {isAdmin && openCards.has("content") && (
           <StageCard
             id="content"
             label="Content"

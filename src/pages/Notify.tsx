@@ -53,20 +53,17 @@ export default function Notify() {
   return (
     <SiteChrome variant="public">
       <main
-        className="mx-auto flex items-start justify-center pointer-events-auto"
+        className="mx-auto flex items-start justify-center pointer-events-auto px-3 md:px-8"
         style={{
           maxWidth: "calc(var(--cell) * 16)",
-          paddingLeft: "var(--cell)",
-          paddingRight: "var(--cell)",
           paddingBottom: "calc(var(--cell) * 7)",
         }}
       >
         <div
-          className="w-full border border-white/15"
+          className="w-full border border-white/15 p-4 md:p-10"
           style={{
             background: "#1a1a1a",
             borderRadius: "2px",
-            padding: "calc(var(--cell) * 1.25)",
           }}
         >
           <Reveal>

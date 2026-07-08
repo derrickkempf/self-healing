@@ -228,6 +228,8 @@ function StageArea({
   minCells: number;
 }) {
   if (isDesktop) {
+    // Desktop stage retains the full 1-cell padding so cards line up
+    // cleanly with the drafting grid.
     return (
       <div
         className="relative"
@@ -242,13 +244,15 @@ function StageArea({
       </div>
     );
   }
+  // Mobile / tablet: tight 12 px side padding so cards can expand to
+  // nearly the full viewport width. Cards are already `width: 100%` in
+  // non-desktop mode, so trimming the parent padding is what actually
+  // widens them.
   return (
     <div
-      className="flex flex-wrap items-start"
+      className="flex flex-wrap items-start px-3 md:px-8"
       style={{
         gap: "var(--cell)",
-        paddingLeft: "var(--cell)",
-        paddingRight: "var(--cell)",
         paddingBottom: "calc(var(--cell) * 7)",
       }}
     >

@@ -25,6 +25,36 @@ create table if not exists public.whitelist (
 insert into public.whitelist (email) values ('dk@derrickkempf.com')
   on conflict (email) do nothing;
 
+-- ============================================================================
+-- admins  (site-content editors — a strict subset of whitelist)
+-- ============================================================================
+-- Whitelisted collaborators can sign in and post/message. Admins can
+-- ADDITIONALLY edit site copy through the built-in CMS. Add rows here
+-- when you want to give another person write-access to site_content.
+
+create table if not exists public.admins (
+  email    text primary key,
+  added_at timestamptz not null default now()
+);
+
+-- Seed the project owner as the only admin. Add more via:
+--   insert into public.admins (email) values ('collab@example.com');
+insert into public.admins (email) values ('dk@derrickkempf.com')
+  on conflict (email) do nothing;
+
+-- Predicate used by the site_content RLS policies. Mirrors the
+-- is_whitelisted() pattern — SECURITY DEFINER so it can read the
+-- admins table even though RLS is enabled on it.
+create or replace function public.is_admin() returns boolean
+  language sql stable
+  security definer
+as $$
+  select exists (
+    select 1 from public.admins
+    where lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+  );
+$$;
+
 -- Diagnostic RPC — the client calls this when any write returns an RLS
 -- error, so we can see the exact JWT + whitelist state that produced the
 -- rejection. Runs as the caller (INVOKER, not DEFINER) so auth.jwt() and
@@ -39,6 +69,7 @@ as $$
     'jwt_email', auth.jwt() ->> 'email',
     'jwt_sub', auth.jwt() ->> 'sub',
     'is_whitelisted', public.is_whitelisted(),
+    'is_admin', public.is_admin(),
     'has_jwt_claims',
       current_setting('request.jwt.claims', true) is not null
         and current_setting('request.jwt.claims', true) <> ''
@@ -191,6 +222,9 @@ alter table public.notification_prefs enable row level security;
 alter table public.whitelist          enable row level security;
 alter table public.signups            enable row level security;
 alter table public.site_content       enable row level security;
+alter table public.admins             enable row level security;
+-- admins — no client policies. Only readable via the is_admin() SECURITY
+-- DEFINER function (which has BYPASSRLS). Manage rows in the SQL editor.
 
 -- signups — anonymous INSERT only. Nobody can SELECT / UPDATE / DELETE
 -- from the client (the founder reads via the SQL editor).
@@ -198,18 +232,20 @@ drop policy if exists "signups: public insert" on public.signups;
 create policy "signups: public insert" on public.signups
   for insert to anon, authenticated with check (true);
 
--- site_content — public read, whitelisted write. Anyone can render
--- edited copy on the public site; only allow-listed collaborators can
+-- site_content — public read, ADMIN-ONLY write. Everyone can render
+-- edited copy on the public site; only rows in public.admins can
 -- change it via the Content admin card in the dashboard.
-drop policy if exists "site_content: public read"       on public.site_content;
+drop policy if exists "site_content: public read"        on public.site_content;
 drop policy if exists "site_content: whitelisted insert" on public.site_content;
 drop policy if exists "site_content: whitelisted update" on public.site_content;
+drop policy if exists "site_content: admin insert"       on public.site_content;
+drop policy if exists "site_content: admin update"       on public.site_content;
 create policy "site_content: public read" on public.site_content
   for select using (true);
-create policy "site_content: whitelisted insert" on public.site_content
-  for insert with check (public.is_whitelisted());
-create policy "site_content: whitelisted update" on public.site_content
-  for update using (public.is_whitelisted());
+create policy "site_content: admin insert" on public.site_content
+  for insert with check (public.is_admin());
+create policy "site_content: admin update" on public.site_content
+  for update using (public.is_admin());
 
 -- Realtime — so a save from the admin card shows up on the public
 -- Story / About / Notify pages immediately for anyone with them open.

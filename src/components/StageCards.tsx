@@ -647,7 +647,7 @@ export function MessagingContent({ currentEmail }: { currentEmail: string }) {
                       } max-w-[min(80%,520px)] min-w-0`}
                     >
                       <div
-                        className={`px-4 py-3 rounded-md text-[13px] leading-relaxed whitespace-pre-wrap break-words ${
+                        className={`px-3 py-2 md:px-4 md:py-3 rounded-md text-[13px] leading-relaxed whitespace-pre-wrap break-words ${
                           isSelf
                             ? "bg-white/[0.22] text-white"
                             : "bg-white/[0.08] text-white"
@@ -745,17 +745,24 @@ export function MessagingContent({ currentEmail }: { currentEmail: string }) {
         </div>
       )}
 
-      <form onSubmit={handleSend} className="flex gap-2">
+      <form onSubmit={handleSend} className="flex gap-1.5 md:gap-2">
         <button
           type="button"
           onClick={() => setShowEmoji((s) => !s)}
           aria-label="Emoji"
-          className={`px-3 text-lg border transition ${
+          className={`text-lg border transition shrink-0 flex items-center justify-center ${
             showEmoji
               ? "border-white/60 bg-white/10 text-white"
               : "border-white/15 text-white/70 hover:border-white/40"
           }`}
-          style={{ borderRadius: "2px" }}
+          style={{
+            borderRadius: "2px",
+            // Compact on mobile so the input has room; slightly larger
+            // on md+ where the composer isn't width-constrained.
+            width: "40px",
+            minWidth: "40px",
+            height: "40px",
+          }}
         >
           ☺
         </button>
@@ -763,14 +770,16 @@ export function MessagingContent({ currentEmail }: { currentEmail: string }) {
           ref={draftRef}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Typing an awesome message here…"
-          className="flex-1"
+          placeholder="Type a message…"
+          className="flex-1 min-w-0"
+          style={{ padding: "10px 12px" }}
           aria-label="Message"
         />
         <button
           type="submit"
           disabled={!draft.trim()}
-          className="px-6 py-3 text-[11px] uppercase tracking-[0.22em] bg-white text-black disabled:opacity-30"
+          className="text-[10px] md:text-[11px] uppercase tracking-[0.18em] md:tracking-[0.22em] bg-white text-black disabled:opacity-30 shrink-0"
+          style={{ padding: "0 12px", minWidth: "56px", height: "40px" }}
         >
           Send
         </button>

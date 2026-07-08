@@ -227,8 +227,12 @@ export default function StageCard({
       </header>
 
       <div
-        className="flex-1 overflow-y-auto scrollbar-thin"
-        style={{ padding: "var(--cell)" }}
+        // Body padding is tight on mobile (12 px) so the content — chat
+        // bubbles, gallery tiles, timeline entries — can breathe closer
+        // to the card edge on small viewports. From md: up we return to
+        // the full 1-cell (32 px) padding so cards align to the grid on
+        // larger screens.
+        className="flex-1 overflow-y-auto scrollbar-thin p-3 md:p-8"
       >
         {children}
       </div>

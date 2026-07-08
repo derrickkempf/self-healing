@@ -142,21 +142,25 @@ export default function Login() {
   // with a 32-px inner pad; keeps the auth flow feeling like a stage
   // card rather than a floating form.
   const panelClass = "border border-white/15 w-full";
+  // Tighter inner padding on mobile so the "Check your email" heading
+  // and OTP cells fit inside a narrow viewport without wrapping the
+  // headline mid-word. From md: up we return to the full cell of
+  // padding so the desktop panel matches the other cards.
   const panelStyle: React.CSSProperties = {
     background: "#1a1a1a",
     borderRadius: "2px",
-    padding: "var(--cell)",
   };
+  const panelClassWithPad = `${panelClass} p-4 md:p-8`;
 
   return (
     <SiteChrome>
-      <main className="min-h-screen flex items-center justify-center px-6 py-24 pointer-events-auto">
+      <main className="min-h-screen flex items-center justify-center px-3 md:px-6 py-24 pointer-events-auto">
         <div className="w-full max-w-[440px]">
           {step === "email" ? (
             <form
               onSubmit={handleRequestCode}
               noValidate
-              className={panelClass}
+              className={panelClassWithPad}
               style={panelStyle}
             >
               <h1 className="font-serif text-5xl md:text-6xl leading-none mb-4">
@@ -199,7 +203,7 @@ export default function Login() {
             <form
               onSubmit={handleVerify}
               noValidate
-              className={panelClass}
+              className={panelClassWithPad}
               style={panelStyle}
             >
               <h1 className="font-serif text-5xl md:text-6xl leading-none mb-4">

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
+import { useIsAdmin } from "../utils/useIsAdmin";
 
 /**
  * SiteChrome — the page shell.
@@ -230,7 +231,12 @@ function TopLeftNav({
   variant,
   onOpen,
 }: NavVariantProps & { onOpen: () => void }) {
-  const items = variant === "public" ? PUBLIC_NAV : PRIVATE_NAV;
+  const rawItems = variant === "public" ? PUBLIC_NAV : PRIVATE_NAV;
+  // Non-admins never see the "Content" nav item — CMS is admin-only.
+  const { isAdmin } = useIsAdmin();
+  const items = isAdmin
+    ? rawItems
+    : rawItems.filter((i) => i.label !== "Content");
 
   return (
     <>
@@ -358,7 +364,13 @@ function NavOverlay({
   variant,
   onClose,
 }: NavVariantProps & { onClose: () => void }) {
-  const items = variant === "public" ? PUBLIC_NAV : PRIVATE_NAV;
+  const rawItems = variant === "public" ? PUBLIC_NAV : PRIVATE_NAV;
+  // Same admin filter as TopLeftNav — non-admins don't see Content in
+  // the mobile drawer either.
+  const { isAdmin } = useIsAdmin();
+  const items = isAdmin
+    ? rawItems
+    : rawItems.filter((i) => i.label !== "Content");
   const linkClass =
     "font-serif text-5xl text-white/90 hover:text-white transition-colors uppercase leading-none";
 
