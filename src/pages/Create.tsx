@@ -10,30 +10,38 @@ import SiteChrome from "../components/SiteChrome";
  * behaviour (drag/drop, keyboard shortcuts, export, save/load) while
  * keeping the site's brand chrome around it.
  *
- * The tool's own CSS was re-skinned to the Self-Healing palette
- * (#1a1a1a canvas, white line accents, CMU Typewriter Text) so the
- * iframe blends visually rather than looking like a foreign widget.
+ * Layering / stacking:
+ *   • SiteChrome's inner content wrapper is `z-10` — a stacking
+ *     context that would trap any fixed element inside it above the
+ *     logo (which sits at z-[2]). So we render the iframe wrapper as
+ *     a SIBLING of SiteChrome (not a child), at zIndex 1 — below the
+ *     logo (2) so the logo sits ON TOP of the iframe's top-right
+ *     corner where its internal aside intentionally leaves an empty
+ *     256×96 rectangle. This makes the logo appear to belong to the
+ *     same column as the tools panel.
  */
 export default function Create() {
   return (
-    <SiteChrome variant="public" hideFooter>
+    <>
+      <SiteChrome variant="public" hideFooter />
       {/*
-        Iframe positioned as a fixed viewport-filling element so it can
-        extend all the way to the right edge (past SiteChrome's normal
-        right-strip padding). The tool's internal CSS keeps its header
-        and stage clear of the top-right logo column, and pins the
-        tools sidebar to the right — same width as the logo — so the
-        whole page reads as three regions: header (top-left), stage
-        (main), and tools (right, below logo).
+        Iframe fills the viewport below the top chrome strip and
+        extends all the way to the right edge (past SiteChrome's
+        normal right-strip padding). The tool's internal CSS keeps
+        its header and stage clear of the top-right logo column, and
+        pins the tools sidebar to the right — same width as the logo
+        — so the whole page reads as three regions: header (top,
+        clears the logo column on the right), stage (main), and
+        tools (right column, sits below the logo).
       */}
       <div
-        className="pointer-events-auto"
         style={{
           position: "fixed",
           top: "var(--cell)",
           left: 0,
           right: 0,
           bottom: 0,
+          zIndex: 1,
         }}
       >
         <iframe
@@ -44,6 +52,6 @@ export default function Create() {
           allow="clipboard-read; clipboard-write"
         />
       </div>
-    </SiteChrome>
+    </>
   );
 }
