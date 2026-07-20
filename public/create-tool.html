@@ -43,75 +43,72 @@
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
   /*
-    Layout regions (mirrors the parent site chrome so the iframe reads
-    as a seamless continuation of the page):
+    Layout uses CSS grid so the iframe reads as a seamless continuation
+    of the site chrome. The grid maps directly onto the site's chrome
+    cells:
 
-      #chromeRight → 32px-wide dark strip pinned to viewport right, top
-                     to bottom — mirrors SiteChrome's right chrome strip
-      #chromeLogo  → 256×96 white-bordered box pinned top-right (32px
-                     from right, since the site logo also sits 32px in
-                     to leave room for the right strip). Contains the
-                     Self-Healing logo SVG.
-      header       → top-left region, from left edge to the logo column
-                     (right offset = logo width + right strip = 288px)
-      main         → below the header, same right offset. Holds the
-                     stage.
-      aside        → tools panel, pinned RIGHT below the logo, exact
-                     same width & right offset as the logo so it reads
-                     as one vertical column.
+      +---------- header ------+---logo--+ strip +
+      |                        |         |       |
+      +----------- main -------+- aside -+       +
+
+      col 1 → 1fr           header + main
+      col 2 → 256px         chromeLogo + aside (matches site logo col)
+      col 3 → 32px          chromeRight (matches site right strip)
+
+      row 1 → 96px          logo height (chrome strip cell)
+      row 2 → 1fr           the actual working area
 
     --cell       32px, matches the site's drafting grid
     --logo-col   width of the top-right logo cluster (8 cells)
     --logo-h     height of the top-right logo cluster (3 cells)
     --gutter     width of the right chrome strip (1 cell)
-    --right-off  logo-col + gutter — width to reserve on the right for
-                 header/main so the logo column stays clear
   */
   :root {
     --cell: 32px;
     --logo-col: calc(var(--cell) * 8);
     --logo-h: calc(var(--cell) * 3);
     --gutter: var(--cell);
-    --right-off: calc(var(--logo-col) + var(--gutter));
   }
-  body{background:var(--bg); color:var(--text); font:13px/1.5 "CMU Typewriter Text", ui-monospace, SFMono-Regular, Menlo, monospace; overflow:hidden; position:relative;}
+  body{
+    background:var(--bg); color:var(--text);
+    font:13px/1.5 "CMU Typewriter Text", ui-monospace, SFMono-Regular, Menlo, monospace;
+    overflow:hidden; position:relative;
+    display:grid;
+    grid-template-columns: 1fr var(--logo-col) var(--gutter);
+    grid-template-rows: var(--logo-h) 1fr;
+    height:100%;
+  }
 
-  /* In-iframe replica of the site's right chrome strip. Solid #1a1a1a
-     with a subtle left border, exactly like SiteChrome renders it. */
+  /* In-iframe replica of the site's right chrome strip. */
   #chromeRight {
-    position:absolute; top:0; right:0; bottom:0;
-    width:var(--gutter);
+    grid-column: 3;
+    grid-row: 1 / -1;
     background:#1a1a1a;
     border-left:1px solid rgba(255,255,255,0.10);
-    z-index:5;
   }
-  /* In-iframe replica of the site's top-right logo box. Same size,
-     same 1a1a1a fill, same white/15 border, same logo SVG at 12px
-     padding — so it visually IS the site logo. */
+  /* In-iframe replica of the site's top-right logo box. */
   #chromeLogo {
-    position:absolute;
-    top:0; right:var(--gutter);
-    width:var(--logo-col); height:var(--logo-h);
+    grid-column: 2;
+    grid-row: 1;
     background:#1a1a1a;
     border:1px solid rgba(255,255,255,0.15);
     display:block;
     text-decoration:none;
     transition:opacity 0.2s ease;
-    z-index:5;
   }
   #chromeLogo:hover { opacity:0.8; }
   #chromeLogo img { width:100%; height:100%; object-fit:contain; padding:12px; display:block; }
 
   header{
+    grid-column: 1;
+    grid-row: 1;
     display:flex; align-items:center; gap:10px; flex-wrap:wrap;
     padding:8px 16px;
     background:var(--panel); border-bottom:1px solid var(--line);
-    position:absolute; top:0; left:0; right:var(--right-off);
-    min-height:var(--logo-h);
+    min-width:0;
     /* If a very narrow viewport pushes buttons onto extra rows the
-       header grows downward; main is positioned relative to logo-h so
-       it may overlap slightly on very small displays. Anything ≥ ~1000px
-       fits comfortably. */
+       header grows downward; grid row 1 is min-content-clamped so it
+       may push main down slightly on very small displays. */
   }
   header h1{font-size:10px; font-weight:500; letter-spacing:0.28em; text-transform:uppercase; color:rgba(255,255,255,0.7);}
   header h1 span{color:var(--accent);}
@@ -125,9 +122,9 @@
   button:disabled{opacity:.4; cursor:default;}
 
   main{
-    position:absolute;
-    top:var(--logo-h); left:0; right:var(--right-off); bottom:0;
-    display:flex; min-height:0;
+    grid-column: 1;
+    grid-row: 2;
+    display:flex; min-height:0; min-width:0;
   }
   #stageWrap{flex:1; display:flex; align-items:center; justify-content:center; padding:24px; min-width:0; overflow:hidden;
     background:
@@ -137,11 +134,11 @@
   #stage{max-width:100%; max-height:100%; box-shadow:0 8px 40px rgba(0,0,0,.5); border-radius:4px; touch-action:none;}
 
   aside{
-    position:absolute;
-    top:var(--logo-h); right:var(--gutter); bottom:0;
-    width:var(--logo-col);
+    grid-column: 2;
+    grid-row: 2;
     background:var(--panel); border-left:1px solid var(--line);
     overflow-y:auto; padding-bottom:40px;
+    min-height:0;
   }
   section{border-bottom:1px solid var(--line); padding:12px 14px;}
   section h2{font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:10px;}
@@ -183,21 +180,19 @@
     disappears (it moves to the mobile footer), so we drop the in-iframe
     logo + right strip and revert to a straight vertical flow so the
     tools panel sits BELOW the stage on narrow screens.
-
-    Body switches to a scrollable flex column. Header still up top,
-    stage in the middle, aside (tools) last — full width. The body
-    itself gets vertical scroll because on a phone the tools panel is
-    long and stacking it under the stage naturally exceeds viewport
-    height.
   */
   @media (max-width: 1279.98px) {
     #chromeLogo, #chromeRight { display:none; }
-    body { display:flex; flex-direction:column; overflow:auto; height:auto; min-height:100%; }
+    body {
+      display:flex; flex-direction:column;
+      overflow:auto; height:auto; min-height:100%;
+      grid-template-columns:none; grid-template-rows:none;
+    }
     html { overflow:auto; }
-    header { position:static; right:auto; min-height:0; height:auto; }
-    main { position:static; top:auto; right:auto; flex:none; height:60vh; min-height:320px; }
+    header { grid-column:auto; grid-row:auto; }
+    main { grid-column:auto; grid-row:auto; flex:none; height:60vh; min-height:320px; }
     aside {
-      position:static; top:auto; right:auto; bottom:auto;
+      grid-column:auto; grid-row:auto;
       width:100%; border-left:none; border-top:1px solid var(--line);
     }
   }
