@@ -8,8 +8,12 @@
   Fonts — hosted at /fonts/ by the parent Vite app. The iframe pulls
   them via relative URL and the same @font-face rules the main site
   uses, so this tool renders in CMU Typewriter Text to match the rest
-  of Self-Healing.
+  of Self-Healing. Instrument Serif comes from Google Fonts, matching
+  what the outer app loads in index.html for h1/h2 display type.
 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap">
 <style>
   @font-face {
     font-family: "CMU Typewriter Text";
@@ -55,13 +59,34 @@
   }
 
   header{
-    display:flex; align-items:center; gap:14px; padding:10px 16px;
+    display:flex; align-items:stretch; gap:14px; padding:0;
     background:var(--panel); border-bottom:1px solid var(--line);
-    flex:none;
+    flex:none; height:96px;
   }
-  header h1{font-size:10px; font-weight:500; letter-spacing:0.28em; text-transform:uppercase; color:rgba(255,255,255,0.7);}
-  header h1 span{color:var(--accent);}
+  /* Controls area — everything except the logo box on the right.
+     Sits inside the header and holds the h1 + button row. */
+  .header-controls{
+    flex:1; display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    padding:10px 20px; min-width:0;
+  }
+  header h1{
+    font-family: "Instrument Serif", serif;
+    font-size:30px; font-weight:500; letter-spacing:0;
+    text-transform:uppercase; color:#ffffff; line-height:1;
+  }
+  header h1 span{color:#ffffff70;}
   .spacer{flex:1;}
+
+  /* Logo box inside the header — 256×96, mirroring the site's
+     top-right logo cluster (8 × 3 cells). */
+  #headerLogo{
+    flex:none; width:256px; height:96px;
+    background:#1a1a1a; border-left:1px solid rgba(255,255,255,0.15);
+    display:block; text-decoration:none;
+    transition:opacity 0.2s ease;
+  }
+  #headerLogo:hover{opacity:0.8;}
+  #headerLogo img{width:100%; height:100%; object-fit:contain; padding:12px; display:block;}
 
   button{background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:2px; padding:6px 12px; font:inherit; cursor:pointer; text-transform:uppercase; letter-spacing:0.18em; font-size:10px;}
   button:hover{border-color:rgba(255,255,255,0.4);}
@@ -79,16 +104,22 @@
   #stage{max-width:100%; max-height:100%; box-shadow:0 8px 40px rgba(0,0,0,.5); border-radius:4px; touch-action:none;}
 
   aside{
-    width:312px; flex:none;
+    width:256px; flex:none;
     background:var(--panel); border-left:1px solid var(--line);
     overflow-y:auto; padding-bottom:40px;
   }
   section{border-bottom:1px solid var(--line); padding:12px 14px;}
-  section h2{font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:10px;}
-  .row{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
-  .row label{flex:none; width:92px; color:var(--muted); font-size:12px;}
-  .row input[type=range]{flex:1; accent-color:var(--accent);}
-  .row .val{flex:none; width:44px; text-align:right; font-variant-numeric:tabular-nums; font-size:12px;}
+  section h2{
+    font-family: "Instrument Serif", serif;
+    font-size:18px; text-transform:uppercase; letter-spacing:1px;
+    color:#ffffff; margin-bottom:10px; line-height:1.1;
+  }
+  /* Rows shrunk to fit the 256px aside — labels 76px + val 36px + gap 6px
+     leaves ~104px of slider travel inside the section's 14px padding. */
+  .row{display:flex; align-items:center; gap:6px; margin-bottom:8px;}
+  .row label{flex:none; width:76px; color:var(--muted); font-size:11px;}
+  .row input[type=range]{flex:1; min-width:0; accent-color:var(--accent);}
+  .row .val{flex:none; width:36px; text-align:right; font-variant-numeric:tabular-nums; font-size:11px;}
   .row input[type=number]{width:70px; background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--text); padding:4px 6px; font:inherit;}
   .row input[type=text]{flex:1; background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--text); padding:6px 8px; font:inherit;}
   .row input[type=color]{width:36px; height:26px; border:1px solid var(--line); border-radius:6px; background:none; padding:1px; cursor:pointer;}
@@ -126,15 +157,23 @@
 <body>
 <div id="dropHint">Drop SVG files to add pieces</div>
 <header>
-  <h1>Create · <span>Motion Studio</span></h1>
-  <button id="playBtn" class="primary">Pause</button>
-  <button id="stepBtn" class="small" title="Advance one frame">Step ▸</button>
-  <div class="spacer"></div>
-  <button id="addBtn">+ Add SVGs</button>
-  <button id="sampleBtn">Load sample</button>
-  <button id="exportBtn" class="primary">Export SVG</button>
-  <button id="gifBtn">GIF</button>
-  <button id="mp4Btn">MP4</button>
+  <div class="header-controls">
+    <h1>Create · <span>Motion Studio</span></h1>
+    <button id="playBtn" class="primary">Pause</button>
+    <button id="stepBtn" class="small" title="Advance one frame">Step ▸</button>
+    <div class="spacer"></div>
+    <button id="addBtn">+ Add SVGs</button>
+    <button id="sampleBtn">Load sample</button>
+    <button id="exportBtn" class="primary">Export SVG</button>
+    <button id="gifBtn">GIF</button>
+    <button id="mp4Btn">MP4</button>
+  </div>
+  <!-- Logo box in the top-right of the header — 256×96, matches the
+       site's TopRightLogo cluster size so it visually reads as the
+       chrome continuing into the Create page. -->
+  <a id="headerLogo" href="/" aria-label="Self-Healing — home" target="_top">
+    <img src="/logo.svg" alt="Self-Healing">
+  </a>
 </header>
 
 <main>
