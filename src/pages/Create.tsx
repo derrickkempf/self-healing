@@ -17,14 +17,23 @@ import SiteChrome from "../components/SiteChrome";
 export default function Create() {
   return (
     <SiteChrome variant="public" hideFooter>
+      {/*
+        Iframe positioned as a fixed viewport-filling element so it can
+        extend all the way to the right edge (past SiteChrome's normal
+        right-strip padding). The tool's internal CSS keeps its header
+        and stage clear of the top-right logo column, and pins the
+        tools sidebar to the right — same width as the logo — so the
+        whole page reads as three regions: header (top-left), stage
+        (main), and tools (right, below logo).
+      */}
       <div
-        className="pointer-events-auto w-full"
+        className="pointer-events-auto"
         style={{
-          // Iframe fills the viewport minus the top chrome strip
-          // (var(--cell)) and the site content wrapper's pt-14 padding.
-          // We use a calc so the tool always fills the visible area.
-          height: "calc(100vh - var(--cell) - 3.5rem)",
-          minHeight: "600px",
+          position: "fixed",
+          top: "var(--cell)",
+          left: 0,
+          right: 0,
+          bottom: 0,
         }}
       >
         <iframe

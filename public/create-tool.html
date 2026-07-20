@@ -42,9 +42,30 @@
   }
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
-  body{background:var(--bg); color:var(--text); font:13px/1.5 "CMU Typewriter Text", ui-monospace, SFMono-Regular, Menlo, monospace; display:flex; flex-direction:column; overflow:hidden;}
+  /*
+    Layout regions (matches the parent site chrome):
+      header  → top row, spans full width MINUS the 256px logo column on the right
+      main    → below header, same right offset — this is where the stage lives
+      aside   → pinned to the right, 256px wide, starts BELOW the logo
+                (logo is 96px tall in the parent frame; iframe sits 32px
+                below viewport top, so logo occupies iframe y=0..96)
+    --logo-col   width of the site's top-right logo cluster (8 × 32px)
+    --logo-h     height of the site's top-right logo cluster (3 × 32px)
+  */
+  :root { --logo-col: 256px; --logo-h: 96px; }
+  body{background:var(--bg); color:var(--text); font:13px/1.5 "CMU Typewriter Text", ui-monospace, SFMono-Regular, Menlo, monospace; overflow:hidden; position:relative;}
 
-  header{display:flex; align-items:center; gap:14px; padding:10px 16px; background:var(--panel); border-bottom:1px solid var(--line); flex:none;}
+  header{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    padding:8px 16px;
+    background:var(--panel); border-bottom:1px solid var(--line);
+    position:absolute; top:0; left:0; right:var(--logo-col);
+    min-height:var(--logo-h);
+    /* If a very narrow viewport pushes buttons onto extra rows the
+       header grows downward; main is positioned relative to logo-h so
+       it may overlap slightly on very small displays. Anything ≥ ~1000px
+       fits comfortably. */
+  }
   header h1{font-size:10px; font-weight:500; letter-spacing:0.28em; text-transform:uppercase; color:rgba(255,255,255,0.7);}
   header h1 span{color:var(--accent);}
   .spacer{flex:1;}
@@ -56,7 +77,11 @@
   button.small{padding:3px 8px; font-size:12px;}
   button:disabled{opacity:.4; cursor:default;}
 
-  main{flex:1; display:flex; min-height:0;}
+  main{
+    position:absolute;
+    top:var(--logo-h); left:0; right:var(--logo-col); bottom:0;
+    display:flex; min-height:0;
+  }
   #stageWrap{flex:1; display:flex; align-items:center; justify-content:center; padding:24px; min-width:0; overflow:hidden;
     background:
       linear-gradient(45deg,#181818 25%,transparent 25%,transparent 75%,#181818 75%),
@@ -64,13 +89,22 @@
     background-color:#1f1f1f; background-size:24px 24px; background-position:0 0,12px 12px;}
   #stage{max-width:100%; max-height:100%; box-shadow:0 8px 40px rgba(0,0,0,.5); border-radius:4px; touch-action:none;}
 
-  aside{width:312px; flex:none; background:var(--panel); border-left:1px solid var(--line); overflow-y:auto; padding-bottom:40px;}
+  aside{
+    position:absolute;
+    top:var(--logo-h); right:0; bottom:0;
+    width:var(--logo-col);
+    background:var(--panel); border-left:1px solid var(--line);
+    overflow-y:auto; padding-bottom:40px;
+  }
   section{border-bottom:1px solid var(--line); padding:12px 14px;}
   section h2{font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:10px;}
-  .row{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
-  .row label{flex:none; width:92px; color:var(--muted); font-size:12px;}
-  .row input[type=range]{flex:1; accent-color:var(--accent);}
-  .row .val{flex:none; width:44px; text-align:right; font-variant-numeric:tabular-nums; font-size:12px;}
+  /* Rows shrunk to fit the narrower (256px) aside — labels compressed
+     from 92→76px and value column from 44→36px so the slider still has
+     a workable ~110px of travel. */
+  .row{display:flex; align-items:center; gap:6px; margin-bottom:8px;}
+  .row label{flex:none; width:76px; color:var(--muted); font-size:11px;}
+  .row input[type=range]{flex:1; min-width:0; accent-color:var(--accent);}
+  .row .val{flex:none; width:36px; text-align:right; font-variant-numeric:tabular-nums; font-size:11px;}
   .row input[type=number]{width:70px; background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--text); padding:4px 6px; font:inherit;}
   .row input[type=text]{flex:1; background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--text); padding:6px 8px; font:inherit;}
   .row input[type=color]{width:36px; height:26px; border:1px solid var(--line); border-radius:6px; background:none; padding:1px; cursor:pointer;}
@@ -96,6 +130,21 @@
   input[type=file]{display:none;}
   #dropHint{position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(255,255,255,.07); border:3px dashed var(--accent); font-size:20px; pointer-events:none; z-index:10;}
   body.dragging #dropHint{display:flex;}
+
+  /*
+    Below the site's xl breakpoint (1280px) the top-right logo goes
+    away and moves to the bottom of the page, so there's no logo
+    column to align to. Revert to the original vertical flow: header
+    on top full-width, main below full-width, aside stacked or hidden.
+    We keep aside above main (via order) and fixed-width so drag/drop
+    still works on tablets, but let the header span the whole width.
+  */
+  @media (max-width: 1279.98px) {
+    body { display:flex; flex-direction:column; overflow:hidden; }
+    header { position:static; right:auto; min-height:0; height:auto; }
+    main { position:static; top:auto; right:auto; flex:1; min-height:0; }
+    aside { position:static; top:auto; right:auto; bottom:auto; width:312px; }
+  }
 </style>
 </head>
 <body>
