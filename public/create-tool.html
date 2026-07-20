@@ -43,23 +43,70 @@
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
   /*
-    Layout regions (matches the parent site chrome):
-      header  → top row, spans full width MINUS the 256px logo column on the right
-      main    → below header, same right offset — this is where the stage lives
-      aside   → pinned to the right, 256px wide, starts BELOW the logo
-                (logo is 96px tall in the parent frame; iframe sits 32px
-                below viewport top, so logo occupies iframe y=0..96)
-    --logo-col   width of the site's top-right logo cluster (8 × 32px)
-    --logo-h     height of the site's top-right logo cluster (3 × 32px)
+    Layout regions (mirrors the parent site chrome so the iframe reads
+    as a seamless continuation of the page):
+
+      #chromeRight → 32px-wide dark strip pinned to viewport right, top
+                     to bottom — mirrors SiteChrome's right chrome strip
+      #chromeLogo  → 256×96 white-bordered box pinned top-right (32px
+                     from right, since the site logo also sits 32px in
+                     to leave room for the right strip). Contains the
+                     Self-Healing logo SVG.
+      header       → top-left region, from left edge to the logo column
+                     (right offset = logo width + right strip = 288px)
+      main         → below the header, same right offset. Holds the
+                     stage.
+      aside        → tools panel, pinned RIGHT below the logo, exact
+                     same width & right offset as the logo so it reads
+                     as one vertical column.
+
+    --cell       32px, matches the site's drafting grid
+    --logo-col   width of the top-right logo cluster (8 cells)
+    --logo-h     height of the top-right logo cluster (3 cells)
+    --gutter     width of the right chrome strip (1 cell)
+    --right-off  logo-col + gutter — width to reserve on the right for
+                 header/main so the logo column stays clear
   */
-  :root { --logo-col: 256px; --logo-h: 96px; }
+  :root {
+    --cell: 32px;
+    --logo-col: calc(var(--cell) * 8);
+    --logo-h: calc(var(--cell) * 3);
+    --gutter: var(--cell);
+    --right-off: calc(var(--logo-col) + var(--gutter));
+  }
   body{background:var(--bg); color:var(--text); font:13px/1.5 "CMU Typewriter Text", ui-monospace, SFMono-Regular, Menlo, monospace; overflow:hidden; position:relative;}
+
+  /* In-iframe replica of the site's right chrome strip. Solid #1a1a1a
+     with a subtle left border, exactly like SiteChrome renders it. */
+  #chromeRight {
+    position:absolute; top:0; right:0; bottom:0;
+    width:var(--gutter);
+    background:#1a1a1a;
+    border-left:1px solid rgba(255,255,255,0.10);
+    z-index:5;
+  }
+  /* In-iframe replica of the site's top-right logo box. Same size,
+     same 1a1a1a fill, same white/15 border, same logo SVG at 12px
+     padding — so it visually IS the site logo. */
+  #chromeLogo {
+    position:absolute;
+    top:0; right:var(--gutter);
+    width:var(--logo-col); height:var(--logo-h);
+    background:#1a1a1a;
+    border:1px solid rgba(255,255,255,0.15);
+    display:block;
+    text-decoration:none;
+    transition:opacity 0.2s ease;
+    z-index:5;
+  }
+  #chromeLogo:hover { opacity:0.8; }
+  #chromeLogo img { width:100%; height:100%; object-fit:contain; padding:12px; display:block; }
 
   header{
     display:flex; align-items:center; gap:10px; flex-wrap:wrap;
     padding:8px 16px;
     background:var(--panel); border-bottom:1px solid var(--line);
-    position:absolute; top:0; left:0; right:var(--logo-col);
+    position:absolute; top:0; left:0; right:var(--right-off);
     min-height:var(--logo-h);
     /* If a very narrow viewport pushes buttons onto extra rows the
        header grows downward; main is positioned relative to logo-h so
@@ -79,7 +126,7 @@
 
   main{
     position:absolute;
-    top:var(--logo-h); left:0; right:var(--logo-col); bottom:0;
+    top:var(--logo-h); left:0; right:var(--right-off); bottom:0;
     display:flex; min-height:0;
   }
   #stageWrap{flex:1; display:flex; align-items:center; justify-content:center; padding:24px; min-width:0; overflow:hidden;
@@ -91,7 +138,7 @@
 
   aside{
     position:absolute;
-    top:var(--logo-h); right:0; bottom:0;
+    top:var(--logo-h); right:var(--gutter); bottom:0;
     width:var(--logo-col);
     background:var(--panel); border-left:1px solid var(--line);
     overflow-y:auto; padding-bottom:40px;
@@ -132,23 +179,46 @@
   body.dragging #dropHint{display:flex;}
 
   /*
-    Below the site's xl breakpoint (1280px) the top-right logo goes
-    away and moves to the bottom of the page, so there's no logo
-    column to align to. Revert to the original vertical flow: header
-    on top full-width, main below full-width, aside stacked or hidden.
-    We keep aside above main (via order) and fixed-width so drag/drop
-    still works on tablets, but let the header span the whole width.
+    Below the site's xl breakpoint (1280px) the top-right logo cluster
+    disappears (it moves to the mobile footer), so we drop the in-iframe
+    logo + right strip and revert to a straight vertical flow so the
+    tools panel sits BELOW the stage on narrow screens.
+
+    Body switches to a scrollable flex column. Header still up top,
+    stage in the middle, aside (tools) last — full width. The body
+    itself gets vertical scroll because on a phone the tools panel is
+    long and stacking it under the stage naturally exceeds viewport
+    height.
   */
   @media (max-width: 1279.98px) {
-    body { display:flex; flex-direction:column; overflow:hidden; }
+    #chromeLogo, #chromeRight { display:none; }
+    body { display:flex; flex-direction:column; overflow:auto; height:auto; min-height:100%; }
+    html { overflow:auto; }
     header { position:static; right:auto; min-height:0; height:auto; }
-    main { position:static; top:auto; right:auto; flex:1; min-height:0; }
-    aside { position:static; top:auto; right:auto; bottom:auto; width:312px; }
+    main { position:static; top:auto; right:auto; flex:none; height:60vh; min-height:320px; }
+    aside {
+      position:static; top:auto; right:auto; bottom:auto;
+      width:100%; border-left:none; border-top:1px solid var(--line);
+    }
   }
 </style>
 </head>
 <body>
 <div id="dropHint">Drop SVG files to add pieces</div>
+
+<!--
+  In-iframe reproduction of the site's top-right logo + right chrome
+  strip. Because the iframe covers the whole viewport below the top
+  chrome strip, the real site logo (fixed to the outer document, at
+  z-index 2) is hidden behind the iframe. Drawing matching versions
+  here makes the Create page look like an uninterrupted continuation
+  of the rest of the site.
+-->
+<div id="chromeRight" aria-hidden="true"></div>
+<a id="chromeLogo" href="/" aria-label="Self-Healing — home" target="_top">
+  <img src="/logo.svg" alt="Self-Healing">
+</a>
+
 <header>
   <h1>Create · <span>Motion Studio</span></h1>
   <button id="playBtn" class="primary">Pause</button>
