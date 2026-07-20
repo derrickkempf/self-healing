@@ -43,72 +43,21 @@
   *{box-sizing:border-box; margin:0; padding:0;}
   html,body{height:100%;}
   /*
-    Layout uses CSS grid so the iframe reads as a seamless continuation
-    of the site chrome. The grid maps directly onto the site's chrome
-    cells:
-
-      +---------- header ------+---logo--+ strip +
-      |                        |         |       |
-      +----------- main -------+- aside -+       +
-
-      col 1 → 1fr           header + main
-      col 2 → 256px         chromeLogo + aside (matches site logo col)
-      col 3 → 32px          chromeRight (matches site right strip)
-
-      row 1 → 96px          logo height (chrome strip cell)
-      row 2 → 1fr           the actual working area
-
-    --cell       32px, matches the site's drafting grid
-    --logo-col   width of the top-right logo cluster (8 cells)
-    --logo-h     height of the top-right logo cluster (3 cells)
-    --gutter     width of the right chrome strip (1 cell)
+    Original single-column flex layout — same structure as the tool
+    shipped with. Skinned to Self-Healing but no chrome overlays.
+    The iframe is sized to fill the Create page area by the outer
+    React shell; the tool itself just spreads to 100% width/height.
   */
-  :root {
-    --cell: 32px;
-    --logo-col: calc(var(--cell) * 8);
-    --logo-h: calc(var(--cell) * 3);
-    --gutter: var(--cell);
-  }
   body{
     background:var(--bg); color:var(--text);
     font:13px/1.5 "CMU Typewriter Text", ui-monospace, SFMono-Regular, Menlo, monospace;
-    overflow:hidden; position:relative;
-    display:grid;
-    grid-template-columns: 1fr var(--logo-col) var(--gutter);
-    grid-template-rows: var(--logo-h) 1fr;
-    height:100%;
+    display:flex; flex-direction:column; overflow:hidden;
   }
-
-  /* In-iframe replica of the site's right chrome strip. */
-  #chromeRight {
-    grid-column: 3;
-    grid-row: 1 / -1;
-    background:#1a1a1a;
-    border-left:1px solid rgba(255,255,255,0.10);
-  }
-  /* In-iframe replica of the site's top-right logo box. */
-  #chromeLogo {
-    grid-column: 2;
-    grid-row: 1;
-    background:#1a1a1a;
-    border:1px solid rgba(255,255,255,0.15);
-    display:block;
-    text-decoration:none;
-    transition:opacity 0.2s ease;
-  }
-  #chromeLogo:hover { opacity:0.8; }
-  #chromeLogo img { width:100%; height:100%; object-fit:contain; padding:12px; display:block; }
 
   header{
-    grid-column: 1;
-    grid-row: 1;
-    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
-    padding:8px 16px;
+    display:flex; align-items:center; gap:14px; padding:10px 16px;
     background:var(--panel); border-bottom:1px solid var(--line);
-    min-width:0;
-    /* If a very narrow viewport pushes buttons onto extra rows the
-       header grows downward; grid row 1 is min-content-clamped so it
-       may push main down slightly on very small displays. */
+    flex:none;
   }
   header h1{font-size:10px; font-weight:500; letter-spacing:0.28em; text-transform:uppercase; color:rgba(255,255,255,0.7);}
   header h1 span{color:var(--accent);}
@@ -121,11 +70,7 @@
   button.small{padding:3px 8px; font-size:12px;}
   button:disabled{opacity:.4; cursor:default;}
 
-  main{
-    grid-column: 1;
-    grid-row: 2;
-    display:flex; min-height:0; min-width:0;
-  }
+  main{flex:1; display:flex; min-height:0;}
   #stageWrap{flex:1; display:flex; align-items:center; justify-content:center; padding:24px; min-width:0; overflow:hidden;
     background:
       linear-gradient(45deg,#181818 25%,transparent 25%,transparent 75%,#181818 75%),
@@ -134,21 +79,16 @@
   #stage{max-width:100%; max-height:100%; box-shadow:0 8px 40px rgba(0,0,0,.5); border-radius:4px; touch-action:none;}
 
   aside{
-    grid-column: 2;
-    grid-row: 2;
+    width:312px; flex:none;
     background:var(--panel); border-left:1px solid var(--line);
     overflow-y:auto; padding-bottom:40px;
-    min-height:0;
   }
   section{border-bottom:1px solid var(--line); padding:12px 14px;}
   section h2{font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:10px;}
-  /* Rows shrunk to fit the narrower (256px) aside — labels compressed
-     from 92→76px and value column from 44→36px so the slider still has
-     a workable ~110px of travel. */
-  .row{display:flex; align-items:center; gap:6px; margin-bottom:8px;}
-  .row label{flex:none; width:76px; color:var(--muted); font-size:11px;}
-  .row input[type=range]{flex:1; min-width:0; accent-color:var(--accent);}
-  .row .val{flex:none; width:36px; text-align:right; font-variant-numeric:tabular-nums; font-size:11px;}
+  .row{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
+  .row label{flex:none; width:92px; color:var(--muted); font-size:12px;}
+  .row input[type=range]{flex:1; accent-color:var(--accent);}
+  .row .val{flex:none; width:44px; text-align:right; font-variant-numeric:tabular-nums; font-size:12px;}
   .row input[type=number]{width:70px; background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--text); padding:4px 6px; font:inherit;}
   .row input[type=text]{flex:1; background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--text); padding:6px 8px; font:inherit;}
   .row input[type=color]{width:36px; height:26px; border:1px solid var(--line); border-radius:6px; background:none; padding:1px; cursor:pointer;}
@@ -175,45 +115,16 @@
   #dropHint{position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(255,255,255,.07); border:3px dashed var(--accent); font-size:20px; pointer-events:none; z-index:10;}
   body.dragging #dropHint{display:flex;}
 
-  /*
-    Below the site's xl breakpoint (1280px) the top-right logo cluster
-    disappears (it moves to the mobile footer), so we drop the in-iframe
-    logo + right strip and revert to a straight vertical flow so the
-    tools panel sits BELOW the stage on narrow screens.
-  */
-  @media (max-width: 1279.98px) {
-    #chromeLogo, #chromeRight { display:none; }
-    body {
-      display:flex; flex-direction:column;
-      overflow:auto; height:auto; min-height:100%;
-      grid-template-columns:none; grid-template-rows:none;
-    }
-    html { overflow:auto; }
-    header { grid-column:auto; grid-row:auto; }
-    main { grid-column:auto; grid-row:auto; flex:none; height:60vh; min-height:320px; }
-    aside {
-      grid-column:auto; grid-row:auto;
-      width:100%; border-left:none; border-top:1px solid var(--line);
-    }
+  /* On narrow screens push the tools panel below the stage. */
+  @media (max-width: 900px) {
+    main { flex-direction:column; }
+    #stageWrap { min-height:320px; }
+    aside { width:100%; border-left:none; border-top:1px solid var(--line); }
   }
 </style>
 </head>
 <body>
 <div id="dropHint">Drop SVG files to add pieces</div>
-
-<!--
-  In-iframe reproduction of the site's top-right logo + right chrome
-  strip. Because the iframe covers the whole viewport below the top
-  chrome strip, the real site logo (fixed to the outer document, at
-  z-index 2) is hidden behind the iframe. Drawing matching versions
-  here makes the Create page look like an uninterrupted continuation
-  of the rest of the site.
--->
-<div id="chromeRight" aria-hidden="true"></div>
-<a id="chromeLogo" href="/" aria-label="Self-Healing — home" target="_top">
-  <img src="/logo.svg" alt="Self-Healing">
-</a>
-
 <header>
   <h1>Create · <span>Motion Studio</span></h1>
   <button id="playBtn" class="primary">Pause</button>
