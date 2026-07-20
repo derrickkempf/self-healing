@@ -158,6 +158,41 @@ export async function saveContent(
 // The RLS policy allows anonymous INSERT into public.signups with no
 // SELECT / UPDATE / DELETE from the client. The list is read only via
 // the SQL editor by the founder.
+//
+// When VITE_KIT_FORM_ID and VITE_KIT_API_KEY are set, the same email
+// is ALSO subscribed to a Kit (ConvertKit) form so it flows into the
+// email delivery tool. Supabase remains the source of truth.
+
+/**
+ * Fire the Kit form-subscribe endpoint. Best-effort — a Kit failure
+ * is logged but never blocks the user's signup. No-op if the Kit env
+ * vars aren't configured, so local dev works without a Kit account.
+ *
+ * The `api_key` used here is Kit's PUBLIC form key — safe in the
+ * browser bundle by design. Never put the `api_secret` in a VITE_*
+ * variable; that one grants admin access to your whole Kit account.
+ */
+async function submitToKit(email: string): Promise<void> {
+  const formId = import.meta.env.VITE_KIT_FORM_ID as string | undefined;
+  const apiKey = import.meta.env.VITE_KIT_API_KEY as string | undefined;
+  if (!formId || !apiKey) return;
+  try {
+    const r = await fetch(
+      `https://api.kit.com/v3/forms/${formId}/subscribe`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ api_key: apiKey, email }),
+      },
+    );
+    if (!r.ok) {
+      const body = await r.text();
+      console.warn("[kit] subscribe failed", r.status, body);
+    }
+  } catch (err) {
+    console.warn("[kit] subscribe threw", err);
+  }
+}
 
 export async function submitSignup(
   email: string,
@@ -166,9 +201,25 @@ export async function submitSignup(
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
     return { ok: false, error: "Enter a valid email address." };
   }
-  const { error } = await supabase
-    .from("signups")
-    .insert({ email: normalized });
+
+  // Fire both writes in parallel. Supabase is authoritative; Kit is
+  // fire-and-forget for delivery. Promise.allSettled means a Kit
+  // outage (or unconfigured Kit env) never blocks a successful
+  // Supabase insert.
+  const [supaResult] = await Promise.allSettled([
+    supabase.from("signups").insert({ email: normalized }),
+    submitToKit(normalized),
+  ]);
+
+  if (supaResult.status === "rejected") {
+    console.error("[supabase] submitSignup network error", supaResult.reason);
+    return {
+      ok: false,
+      error: "Something went wrong. Check your connection and try again.",
+    };
+  }
+
+  const { error } = supaResult.value;
   if (error) {
     // 23505 = duplicate key (already on list). Treat as success — no
     // reason to make the user re-submit or feel like they "failed".

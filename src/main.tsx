@@ -5,6 +5,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import Home from "./pages/Home";
 import Story from "./pages/Story";
 import Notify from "./pages/Notify";
+import Create from "./pages/Create";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Chat from "./pages/Chat";
@@ -43,6 +44,7 @@ function RoutedShell() {
       <Routes location={location}>
         <Route path="/" element={<Home />} />
         <Route path="/story" element={<Story />} />
+        <Route path="/create" element={<Create />} />
         <Route path="/notify" element={<Notify />} />
         <Route path="/login" element={<Login />} />
         <Route

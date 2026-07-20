@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create · Self-Healing</title>
+<!--
+  Fonts — hosted at /fonts/ by the parent Vite app. The iframe pulls
+  them via relative URL and the same @font-face rules the main site
+  uses, so this tool renders in CMU Typewriter Text to match the rest
+  of Self-Healing.
+-->
+<style>
+  @font-face {
+    font-family: "CMU Typewriter Text";
+    src: url("/fonts/CMUTypewriter-Regular.woff2") format("woff2"),
+         url("/fonts/CMUTypewriter-Regular.woff") format("woff");
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "CMU Typewriter Text";
+    src: url("/fonts/CMUTypewriter-Bold.woff2") format("woff2"),
+         url("/fonts/CMUTypewriter-Bold.woff") format("woff");
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+  }
+
+  :root{
+    /*
+      Re-skinned to match the Self-Healing site palette.
+      --bg:      matches the main site's #1a1a1a canvas
+      --panel:   slightly deeper for the sidebar
+      --panel2:  input backgrounds
+      --line:    matches white/15 border tone
+      --accent:  full white — matches the marquee accent
+    */
+    --bg:#1a1a1a; --panel:#151515; --panel2:#242424; --line:rgba(255,255,255,0.15);
+    --text:#ffffff; --muted:rgba(255,255,255,0.45); --accent:#ffffff; --accent2:rgba(255,255,255,0.7);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{background:var(--bg); color:var(--text); font:13px/1.5 "CMU Typewriter Text", ui-monospace, SFMono-Regular, Menlo, monospace; display:flex; flex-direction:column; overflow:hidden;}
+
+  header{display:flex; align-items:center; gap:14px; padding:10px 16px; background:var(--panel); border-bottom:1px solid var(--line); flex:none;}
+  header h1{font-size:10px; font-weight:500; letter-spacing:0.28em; text-transform:uppercase; color:rgba(255,255,255,0.7);}
+  header h1 span{color:var(--accent);}
+  .spacer{flex:1;}
+
+  button{background:var(--panel2); color:var(--text); border:1px solid var(--line); border-radius:2px; padding:6px 12px; font:inherit; cursor:pointer; text-transform:uppercase; letter-spacing:0.18em; font-size:10px;}
+  button:hover{border-color:rgba(255,255,255,0.4);}
+  button.primary{background:var(--accent); border-color:var(--accent); color:#1a1a1a; font-weight:500;}
+  button.primary:hover{background:#e5e5e5; border-color:#e5e5e5;}
+  button.small{padding:3px 8px; font-size:12px;}
+  button:disabled{opacity:.4; cursor:default;}
+
+  main{flex:1; display:flex; min-height:0;}
+  #stageWrap{flex:1; display:flex; align-items:center; justify-content:center; padding:24px; min-width:0; overflow:hidden;
+    background:
+      linear-gradient(45deg,#181818 25%,transparent 25%,transparent 75%,#181818 75%),
+      linear-gradient(45deg,#181818 25%,transparent 25%,transparent 75%,#181818 75%);
+    background-color:#1f1f1f; background-size:24px 24px; background-position:0 0,12px 12px;}
+  #stage{max-width:100%; max-height:100%; box-shadow:0 8px 40px rgba(0,0,0,.5); border-radius:4px; touch-action:none;}
+
+  aside{width:312px; flex:none; background:var(--panel); border-left:1px solid var(--line); overflow-y:auto; padding-bottom:40px;}
+  section{border-bottom:1px solid var(--line); padding:12px 14px;}
+  section h2{font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:10px;}
+  .row{display:flex; align-items:center; gap:8px; margin-bottom:8px;}
+  .row label{flex:none; width:92px; color:var(--muted); font-size:12px;}
+  .row input[type=range]{flex:1; accent-color:var(--accent);}
+  .row .val{flex:none; width:44px; text-align:right; font-variant-numeric:tabular-nums; font-size:12px;}
+  .row input[type=number]{width:70px; background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--text); padding:4px 6px; font:inherit;}
+  .row input[type=text]{flex:1; background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--text); padding:6px 8px; font:inherit;}
+  .row input[type=color]{width:36px; height:26px; border:1px solid var(--line); border-radius:6px; background:none; padding:1px; cursor:pointer;}
+  .btnrow{display:flex; gap:8px; flex-wrap:wrap;}
+  .btnrow button{flex:1;}
+  .hint{color:var(--muted); font-size:11px; margin-top:6px;}
+  .toggle{display:flex; align-items:center; gap:6px; color:var(--muted); font-size:12px; cursor:pointer; user-select:none; width:auto !important;}
+  .toggle input{accent-color:var(--accent);}
+
+  #pieceList{display:flex; flex-direction:column; gap:4px; margin-bottom:8px; max-height:220px; overflow-y:auto;}
+  .pieceItem{display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:7px; background:var(--panel2); border:1px solid transparent; cursor:pointer;}
+  .pieceItem.sel{border-color:var(--accent);}
+  .pieceItem .thumb{width:26px; height:26px; flex:none; background:#fff2; border-radius:4px; display:flex; align-items:center; justify-content:center; overflow:hidden;}
+  .pieceItem .thumb svg{width:22px; height:22px;}
+  .pieceItem .nm{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px;}
+  .pieceItem .ops{display:flex; gap:2px;}
+  .pieceItem .ops button{padding:1px 6px; font-size:11px; border-radius:5px;}
+
+  #playBtn{width:76px;}
+  .stateBtn{flex:1;}
+  .stateBtn.on{background:var(--accent); color:#111; border-color:var(--accent); font-weight:600;}
+  #fStatus .fname{color:var(--accent2); font-size:12px;}
+  input[type=file]{display:none;}
+  #dropHint{position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(255,255,255,.07); border:3px dashed var(--accent); font-size:20px; pointer-events:none; z-index:10;}
+  body.dragging #dropHint{display:flex;}
+</style>
+</head>
+<body>
+<div id="dropHint">Drop SVG files to add pieces</div>
+<header>
+  <h1>Create · <span>Motion Studio</span></h1>
+  <button id="playBtn" class="primary">Pause</button>
+  <button id="stepBtn" class="small" title="Advance one frame">Step ▸</button>
+  <div class="spacer"></div>
+  <button id="addBtn">+ Add SVGs</button>
+  <button id="sampleBtn">Load sample</button>
+  <button id="exportBtn" class="primary">Export SVG</button>
+  <button id="gifBtn">GIF</button>
+  <button id="mp4Btn">MP4</button>
+</header>
+
+<main>
+  <div id="stageWrap"><svg id="stage" xmlns="http://www.w3.org/2000/svg"></svg></div>
+
+  <aside>
+    <section>
+      <h2>Transform (A → B)</h2>
+      <div class="row">
+        <button class="small stateBtn on" id="stateA">A · start</button>
+        <button class="small stateBtn" id="stateB">B · end</button>
+      </div>
+      <div class="hint" style="margin-top:0;margin-bottom:10px">Arrange pieces in A, then switch to B and rearrange them to set the end state. Play loops A → B → A forever. Or auto-fill B with a prompt:</div>
+      <div class="row">
+        <input type="text" id="fPrompt" placeholder='e.g. "transform into an arrow"'>
+        <button id="fGo" class="primary small">Go</button>
+      </div>
+      <div class="row"><label>Hold (s)</label><input type="range" id="fHold" min="0.2" max="4" step="0.1" value="1.2"><div class="val" id="fHoldV">1.2s</div></div>
+      <div class="row"><label>Travel (s)</label><input type="range" id="fTrav" min="0.2" max="4" step="0.1" value="1"><div class="val" id="fTravV">1s</div></div>
+      <div class="row"><label class="toggle"><input type="checkbox" id="fFit" checked> Resize pieces to fill the shape</label></div>
+      <div class="row" id="fStatus" style="display:none">
+        <div class="fname" id="fName"></div><div class="spacer"></div>
+        <button class="small" id="fShuffle" title="Re-assign pieces to different spots">↺ Remap</button>
+        <button class="small" id="fClear">✕ Clear</button>
+      </div>
+      <div class="hint">Prompts run fully offline — no AI, no tokens. Known shapes: arrow (add up/down/left), heart, star, circle, square, triangle, diamond, plus, x, moon, bolt. Anything else gets spelled out as letters. After a prompt fills B, you can fine-tune it in B mode.</div>
+    </section>
+
+    <section>
+      <h2>Playback</h2>
+      <div class="row"><label>Speed (fps)</label><input type="range" id="fps" min="2" max="24" step="1" value="8"><div class="val" id="fpsV">8</div></div>
+      <div class="row"><label>Jitter frames</label><input type="range" id="frames" min="2" max="16" step="1" value="8"><div class="val" id="framesV">8</div></div>
+      <div class="row"><label>Random seed</label><div class="val" id="seedV" style="width:auto">1234</div><div class="spacer"></div><button class="small" id="rerollBtn">🎲 Reroll</button></div>
+    </section>
+
+    <section>
+      <h2>Stop-motion jitter</h2>
+      <div class="row"><label>Position</label><input type="range" id="jPos" min="0" max="60" step="1" value="10"><div class="val" id="jPosV">10px</div></div>
+      <div class="row"><label>Rotation</label><input type="range" id="jRot" min="0" max="20" step="0.5" value="2.5"><div class="val" id="jRotV">2.5°</div></div>
+      <div class="row"><label>Scale</label><input type="range" id="jScl" min="0" max="20" step="0.5" value="2"><div class="val" id="jSclV">2%</div></div>
+      <div class="hint">Every piece gets its own random nudge per frame — like paper cutouts moved between photos.</div>
+    </section>
+
+    <section>
+      <h2 style="display:flex;align-items:center">Pieces <span id="pieceCount" style="color:var(--muted);font-weight:400;margin-left:4px"></span><span class="spacer"></span><button class="small" id="selAllBtn" style="text-transform:none;letter-spacing:0">Select all</button></h2>
+      <div id="pieceList"></div>
+      <div id="pieceCtrl" style="display:none">
+        <div class="row"><label>Color</label><input type="color" id="pCol" value="#181512"><button class="small" id="pColAll" title="Apply this color to all pieces">All</button><div class="spacer"></div><button class="small" id="pColReset">Original</button></div>
+        <div class="row"><label>Scale</label><input type="range" id="pScl" min="5" max="400" step="1" value="100"><div class="val" id="pSclV">100%</div></div>
+        <div class="row"><label>Rotation</label><input type="range" id="pRot" min="-180" max="180" step="1" value="0"><div class="val" id="pRotV">0°</div></div>
+        <div class="row"><label>Jitter amount</label><input type="range" id="pJit" min="0" max="300" step="5" value="100"><div class="val" id="pJitV">100%</div></div>
+      </div>
+      <div class="hint">Click a piece to select it, drag to set its start position. Shift-click for multi-select · Cmd/Ctrl+A selects all · Esc deselects · Arrow keys nudge · Delete removes. Controls apply to every selected piece.</div>
+    </section>
+
+    <section>
+      <h2>Background</h2>
+      <div class="row"><label>Color</label><input type="color" id="bgColor" value="#cf3527"><div class="spacer"></div>
+        <button class="small" id="bgImgBtn">Image…</button><button class="small" id="bgImgClear" style="display:none">✕</button></div>
+    </section>
+
+    <section>
+      <h2>Canvas</h2>
+      <div class="row"><label>Width</label><input type="number" id="cw" value="1080" min="64" max="4096"></div>
+      <div class="row"><label>Height</label><input type="number" id="ch" value="1080" min="64" max="4096"></div>
+      <div class="row"><label class="toggle"><input type="checkbox" id="guidesChk" checked> Show 8×8 grid guides</label></div>
+      <div class="hint">Guides divide the canvas into an 8×8 grid (135×135&nbsp;px cells at 1080). Editor-only — never in exports.</div>
+    </section>
+
+    <section>
+      <h2>Project</h2>
+      <div class="btnrow">
+        <button id="saveBtn">Save project</button>
+        <button id="loadBtn">Load project</button>
+      </div>
+      <div class="hint">Saves everything (pieces, colors, formation, settings) as a .json you can reload later.</div>
+    </section>
+  </aside>
+</main>
+
+<input type="file" id="fileIn" accept=".svg,image/svg+xml" multiple>
+<input type="file" id="bgIn" accept="image/*">
+<input type="file" id="projIn" accept=".json,application/json">
+
+<script>
+"use strict";
+/* ============================ State ============================ */
+const S = {
+  w:1080, h:1080,
+  bgColor:"#cf3527", bgImage:null,
+  fps:8, frames:8, seed:1234,
+  jPos:10, jRot:2.5, jScl:2,
+  holdSec:1.2, travSec:1, fit:true, guides:true,
+  formation:null,                 // {prompt, label}
+  pieces:[],                      // {id,name,svgText,vb,inner,color,colInner,x,y,scale,rot,jit,tx,ty,trot,tscale}
+  sel:new Set(), playing:true, frame:0,
+  editState:"A", forceMix:null,
+};
+let nextId = 1;
+let jit = {};        // id -> [[dx,dy,dr,ds] per jitter frame]
+let els = {};        // id -> {g, nest}
+const $ = id => document.getElementById(id);
+const stage = $("stage");
+const SVGNS = "http://www.w3.org/2000/svg";
+const lerp = (a,b,t)=>a+(b-a)*t;
+const ease = t => t<0.5 ? 2*t*t : 1-Math.pow(-2*t+2,2)/2;
+
+/* ============================ RNG & jitter ============================ */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+function computeJitter(){
+  jit = {};
+  S.pieces.forEach((p,i)=>{
+    const arr=[];
+    for(let f=0; f<S.frames; f++){
+      const r = mulberry32(S.seed*7919 + i*1013 + f*31);
+      const m = p.jit;
+      arr.push([(r()*2-1)*S.jPos*m, (r()*2-1)*S.jPos*m, (r()*2-1)*S.jRot*m, 1+(r()*2-1)*(S.jScl/100)*m]);
+    }
+    jit[p.id]=arr;
+  });
+}
+
+/* ============================ Timeline ============================ */
+function phaseFrames(){
+  return { h: Math.max(1, Math.round(S.holdSec*S.fps)), t: Math.max(2, Math.round(S.travSec*S.fps)) };
+}
+function cycleFrames(){
+  if(!S.formation) return S.frames;
+  const {h,t} = phaseFrames();
+  return 2*(h+t);
+}
+function mixAt(f){                    // 0 = start layout, 1 = formation
+  const {h,t} = phaseFrames();
+  f = f % (2*(h+t));
+  if(f < h) return 0;
+  f -= h;
+  if(f < t) return ease(f/t);
+  f -= t;
+  if(f < h) return 1;
+  f -= h;
+  return 1 - ease(f/t);
+}
+function transformAt(p, f){
+  const j = (jit[p.id] && jit[p.id][f % S.frames]) || [0,0,0,1];
+  let x=p.x, y=p.y, r=p.rot, s=p.scale;
+  if(S.formation && p.tx!=null){
+    const m = S.forceMix!=null ? S.forceMix : mixAt(f);
+    x=lerp(x,p.tx,m); y=lerp(y,p.ty,m); r=lerp(r,p.trot,m); s=lerp(s,p.tscale,m);
+  }
+  return [x+j[0], y+j[1], r+j[2], s*j[3]];
+}
+
+/* ============================ SVG parsing & recolor ============================ */
+function parseSvg(text){
+  const doc = new DOMParser().parseFromString(text, "image/svg+xml");
+  const root = doc.documentElement;
+  if(root.nodeName!=="svg" || doc.querySelector("parsererror")) return null;
+  root.querySelectorAll("script").forEach(n=>n.remove());
+  let v;
+  const vb = root.getAttribute("viewBox");
+  if(vb){ v = vb.trim().split(/[\s,]+/).map(Number); }
+  else {
+    const w = parseFloat(root.getAttribute("width"))||100;
+    const h = parseFloat(root.getAttribute("height"))||100;
+    v = [0,0,w,h];
+  }
+  return { inner: root.innerHTML, vb: v };
+}
+
+function recolor(inner, color){
+  const doc = new DOMParser().parseFromString(`<svg xmlns="${SVGNS}">`+inner+"</svg>", "image/svg+xml");
+  if(doc.querySelector("parsererror")) return inner;
+  doc.documentElement.querySelectorAll("*").forEach(el=>{
+    const f = el.getAttribute && el.getAttribute("fill");
+    if(f && f!=="none") el.setAttribute("fill", color);
+    const st = el.getAttribute && el.getAttribute("stroke");
+    if(st && st!=="none") el.setAttribute("stroke", color);
+    if(el.style){
+      if(el.style.fill && el.style.fill!=="none") el.style.fill=color;
+      if(el.style.stroke && el.style.stroke!=="none") el.style.stroke=color;
+      if(el.style.stopColor) el.style.stopColor=color;
+    }
+    if(el.getAttribute && el.getAttribute("stop-color")) el.setAttribute("stop-color", color);
+  });
+  return doc.documentElement.innerHTML;
+}
+function curInner(p){ return p.color ? p.colInner : p.inner; }
+function setColor(p, color){
+  p.color = color;
+  p.colInner = color ? recolor(p.inner, color) : null;
+  updatePieceContent(p);
+  renderList();
+}
+
+function addPiece(name, svgText, opts={}){
+  const parsed = parseSvg(svgText);
+  if(!parsed){ alert("Couldn't parse SVG: "+name); return null; }
+  const [,,vw,vh] = parsed.vb;
+  const fit = Math.min(1, (Math.min(S.w,S.h)*0.35)/Math.max(vw,vh));
+  const p = {
+    id: nextId++, name, svgText, vb: parsed.vb, inner: parsed.inner,
+    color: opts.color ?? null, colInner: null,
+    x: opts.x ?? S.w/2 + (Math.random()*2-1)*S.w*0.15,
+    y: opts.y ?? S.h/2 + (Math.random()*2-1)*S.h*0.15,
+    scale: opts.scale ?? fit, rot: opts.rot ?? 0, jit: opts.jit ?? 1,
+    tx: opts.tx ?? null, ty: opts.ty ?? null, trot: opts.trot ?? 0, tscale: opts.tscale ?? 1,
+  };
+  if(p.color) p.colInner = recolor(p.inner, p.color);
+  S.pieces.push(p);
+  return p;
+}
+
+/* ============================ Scene ============================ */
+function buildScene(){
+  stage.setAttribute("viewBox", `0 0 ${S.w} ${S.h}`);
+  stage.innerHTML = "";
+  els = {};
+
+  const bgRect = document.createElementNS(SVGNS,"rect");
+  bgRect.setAttribute("width",S.w); bgRect.setAttribute("height",S.h);
+  bgRect.setAttribute("fill",S.bgColor);
+  bgRect.addEventListener("pointerdown", ()=>clearSel());
+  stage.appendChild(bgRect);
+  if(S.bgImage){
+    const im = document.createElementNS(SVGNS,"image");
+    im.setAttribute("width",S.w); im.setAttribute("height",S.h);
+    im.setAttribute("preserveAspectRatio","xMidYMid slice");
+    im.setAttribute("href",S.bgImage);
+    im.addEventListener("pointerdown", ()=>clearSel());
+    stage.appendChild(im);
+  }
+
+  for(const p of S.pieces){
+    const g = document.createElementNS(SVGNS,"g");
+    const nest = document.createElementNS(SVGNS,"svg");
+    const [,,vw,vh] = p.vb;
+    nest.setAttribute("viewBox", p.vb.join(" "));
+    nest.setAttribute("x", -vw/2); nest.setAttribute("y", -vh/2);
+    nest.setAttribute("width", vw); nest.setAttribute("height", vh);
+    nest.setAttribute("overflow","visible");
+    g.appendChild(nest); stage.appendChild(g);
+    g.style.cursor = "grab";
+    g.addEventListener("pointerdown", e=>startDrag(e,p));
+    els[p.id] = {g, nest};
+    updatePieceContent(p);
+  }
+
+  const gg = document.createElementNS(SVGNS,"g");
+  gg.setAttribute("id","guides");
+  gg.setAttribute("pointer-events","none");
+  for(let i=1; i<8; i++){
+    const v=document.createElementNS(SVGNS,"line");
+    v.setAttribute("x1",S.w/8*i); v.setAttribute("y1",0);
+    v.setAttribute("x2",S.w/8*i); v.setAttribute("y2",S.h);
+    const h=document.createElementNS(SVGNS,"line");
+    h.setAttribute("x1",0); h.setAttribute("y1",S.h/8*i);
+    h.setAttribute("x2",S.w); h.setAttribute("y2",S.h/8*i);
+    [v,h].forEach(l=>{
+      l.setAttribute("stroke","rgba(255,255,255,.4)");
+      l.setAttribute("stroke-width", Math.max(1, S.w/1080));
+      l.setAttribute("stroke-dasharray", `${S.w/180} ${S.w/270}`);
+      gg.appendChild(l);
+    });
+  }
+  gg.style.display = S.guides ? "" : "none";
+  stage.appendChild(gg);
+
+  const gb = document.createElementNS(SVGNS,"g");
+  gb.setAttribute("id","selboxes");
+  gb.setAttribute("pointer-events","none");
+  stage.appendChild(gb);
+
+  computeJitter();
+  applyFrame();
+  updateSelBox();
+  renderList();
+}
+
+function updatePieceContent(p){
+  const e = els[p.id]; if(!e) return;
+  e.nest.innerHTML = curInner(p);
+  if(p.color) e.nest.setAttribute("fill", p.color); else e.nest.removeAttribute("fill");
+}
+
+function applyFrame(){
+  for(const p of S.pieces){
+    const [x,y,r,s] = transformAt(p, S.frame);
+    els[p.id].g.setAttribute("transform", `translate(${x} ${y}) rotate(${r}) scale(${s})`);
+  }
+}
+
+function updateSelBox(){
+  const gb = stage.querySelector("#selboxes");
+  if(!gb) return;
+  gb.innerHTML = "";
+  const k = PK();
+  for(const p of selPieces()){
+    if(S.editState==="B") ensureB(p);
+    const [,,vw,vh]=p.vb;
+    const sb=document.createElementNS(SVGNS,"rect");
+    sb.setAttribute("fill","none"); sb.setAttribute("stroke","#ffffff");
+    sb.setAttribute("stroke-width", Math.max(2,S.w/400));
+    sb.setAttribute("stroke-dasharray", `${S.w/120} ${S.w/180}`);
+    sb.setAttribute("x",-vw/2-6); sb.setAttribute("y",-vh/2-6);
+    sb.setAttribute("width",vw+12); sb.setAttribute("height",vh+12);
+    sb.setAttribute("transform", `translate(${p[k.x]} ${p[k.y]}) rotate(${p[k.rot]}) scale(${p[k.scale]})`);
+    gb.appendChild(sb);
+  }
+}
+
+/* ============================ Playback ============================ */
+let timer=null;
+function restartTimer(){
+  clearInterval(timer);
+  if(S.playing) timer = setInterval(()=>{ S.frame=(S.frame+1)%cycleFrames(); applyFrame(); }, 1000/S.fps);
+}
+$("playBtn").onclick = ()=>{
+  S.playing=!S.playing;
+  if(S.playing && S.editState==="B"){ S.editState="A"; S.forceMix=null; S.frame=0;
+    $("stateA").classList.add("on"); $("stateB").classList.remove("on"); syncSel(); }
+  $("playBtn").textContent = S.playing?"Pause":"Play";
+  restartTimer();
+};
+$("stepBtn").onclick = ()=>{
+  if(S.editState==="B"){ setEditState("A"); }
+  S.frame=(S.frame+1)%cycleFrames(); applyFrame();
+};
+
+/* ============================ Selection & drag ============================ */
+function svgPt(e){
+  const pt = stage.createSVGPoint();
+  pt.x=e.clientX; pt.y=e.clientY;
+  return pt.matrixTransform(stage.getScreenCTM().inverse());
+}
+let drag=null;
+function startDrag(e,p){
+  e.stopPropagation();
+  if(!S.sel.has(p.id)){ select(p.id, e.shiftKey); }
+  else if(e.shiftKey){ select(p.id, true); return; }   // shift-click on selected piece = deselect it
+  const m = svgPt(e);
+  const k = PK();
+  if(S.editState==="B") selPieces().forEach(ensureB);
+  drag = {m0:m, k, starts:selPieces().map(q=>[q, q[k.x], q[k.y]])};
+  window.addEventListener("pointermove", onDrag);
+  window.addEventListener("pointerup", endDrag);
+}
+function onDrag(e){
+  if(!drag) return;
+  const m = svgPt(e);
+  const dx=m.x-drag.m0.x, dy=m.y-drag.m0.y;
+  drag.starts.forEach(([q,x0,y0])=>{ q[drag.k.x]=x0+dx; q[drag.k.y]=y0+dy; });
+  applyFrame(); updateSelBox();
+}
+function endDrag(){ drag=null; window.removeEventListener("pointermove",onDrag); window.removeEventListener("pointerup",endDrag); }
+
+/* pose helpers: which fields do the editing tools touch? (A = start, B = end) */
+function PK(){ return S.editState==="B" ? {x:"tx",y:"ty",rot:"trot",scale:"tscale"} : {x:"x",y:"y",rot:"rot",scale:"scale"}; }
+function ensureB(p){ if(p.tx==null){ p.tx=p.x; p.ty=p.y; p.trot=p.rot; p.tscale=p.scale; } }
+function setEditState(st){
+  S.editState = st;
+  $("stateA").classList.toggle("on", st==="A");
+  $("stateB").classList.toggle("on", st==="B");
+  if(st==="B"){
+    S.pieces.forEach(ensureB);
+    if(!S.formation){
+      S.formation = {prompt:"", label:"A→B"};
+      $("fStatus").style.display=""; $("fName").textContent="→ A→B";
+    }
+    S.playing=false; $("playBtn").textContent="Play"; restartTimer();
+    S.forceMix = 1;
+  } else {
+    S.forceMix = null; S.frame = 0;
+  }
+  applyFrame(); syncSel();
+}
+$("stateA").onclick = ()=>setEditState("A");
+$("stateB").onclick = ()=>setEditState("B");
+
+function selPieces(){ return S.pieces.filter(p=>S.sel.has(p.id)); }
+function clearSel(){ S.sel.clear(); syncSel(); }
+function selectAll(){ S.sel = new Set(S.pieces.map(p=>p.id)); syncSel(); }
+function select(id, additive){
+  if(id==null){ clearSel(); return; }
+  if(additive){ S.sel.has(id) ? S.sel.delete(id) : S.sel.add(id); }
+  else S.sel = new Set([id]);
+  syncSel();
+}
+function syncSel(){
+  const ps = selPieces();
+  $("pieceCtrl").style.display = ps.length?"":"none";
+  const p = ps[0];
+  if(p){
+    const k = PK();
+    if(S.editState==="B") ensureB(p);
+    $("pScl").value=Math.round(p[k.scale]*100); $("pSclV").textContent=Math.round(p[k.scale]*100)+"%";
+    $("pRot").value=p[k.rot]; $("pRotV").textContent=Math.round(p[k.rot])+"°";
+    $("pJit").value=p.jit*100; $("pJitV").textContent=Math.round(p.jit*100)+"%";
+    if(p.color) $("pCol").value=p.color;
+  }
+  updateSelBox(); renderList();
+}
+$("selAllBtn").onclick = selectAll;
+
+document.addEventListener("keydown", e=>{
+  if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==="a"){ e.preventDefault(); selectAll(); return; }
+  if(e.key==="Escape"){ clearSel(); return; }
+  const ps = selPieces();
+  if(!ps.length) return;
+  const step = e.shiftKey?10:2;
+  if(e.key==="Delete"||e.key==="Backspace"){ removeSelected(); e.preventDefault(); return; }
+  const k = PK();
+  if(S.editState==="B") ps.forEach(ensureB);
+  if(e.key==="ArrowLeft") ps.forEach(p=>p[k.x]-=step);
+  else if(e.key==="ArrowRight") ps.forEach(p=>p[k.x]+=step);
+  else if(e.key==="ArrowUp") ps.forEach(p=>p[k.y]-=step);
+  else if(e.key==="ArrowDown") ps.forEach(p=>p[k.y]+=step);
+  else return;
+  applyFrame(); updateSelBox(); e.preventDefault();
+});
+
+/* ============================ Piece list ============================ */
+function renderList(){
+  const box=$("pieceList"); box.innerHTML="";
+  $("pieceCount").textContent = S.pieces.length? "("+S.pieces.length+")":"";
+  [...S.pieces].reverse().forEach(p=>{
+    const d=document.createElement("div");
+    d.className="pieceItem"+(S.sel.has(p.id)?" sel":"");
+    d.innerHTML = `<div class="thumb"><svg viewBox="${p.vb.join(" ")}" ${p.color?`fill="${p.color}"`:""}>${curInner(p)}</svg></div>
+      <div class="nm">${p.name.replace(/[<>&]/g,"")}</div>
+      <div class="ops">
+        <button title="Raise layer">▲</button><button title="Lower layer">▼</button>
+        <button title="Duplicate">⧉</button><button title="Delete">✕</button>
+      </div>`;
+    d.onclick = e=>select(p.id, e.shiftKey);
+    const [up,down,dup,del] = d.querySelectorAll(".ops button");
+    up.onclick   = e=>{e.stopPropagation(); movePiece(p.id,+1);};
+    down.onclick = e=>{e.stopPropagation(); movePiece(p.id,-1);};
+    dup.onclick  = e=>{e.stopPropagation(); const c=addPiece(p.name,p.svgText,{x:p.x+40,y:p.y+40,scale:p.scale,rot:p.rot,jit:p.jit,color:p.color}); buildScene(); if(c)select(c.id);};
+    del.onclick  = e=>{e.stopPropagation(); removePiece(p.id);};
+    box.appendChild(d);
+  });
+}
+function movePiece(id,dir){
+  const i=S.pieces.findIndex(q=>q.id===id);
+  const j=i+dir;
+  if(j<0||j>=S.pieces.length) return;
+  [S.pieces[i],S.pieces[j]]=[S.pieces[j],S.pieces[i]];
+  buildScene();
+}
+function removePiece(id){
+  S.pieces = S.pieces.filter(q=>q.id!==id);
+  S.sel.delete(id);
+  buildScene(); syncSel();
+}
+function removeSelected(){
+  S.pieces = S.pieces.filter(q=>!S.sel.has(q.id));
+  S.sel.clear();
+  buildScene(); syncSel();
+}
+
+/* ============================ Controls ============================ */
+function bindRange(id, key, fmt, after){
+  $(id).addEventListener("input", e=>{
+    S[key]=parseFloat(e.target.value);
+    $(id+"V").textContent = fmt(S[key]);
+    after && after();
+  });
+}
+bindRange("fps","fps",v=>v, restartTimer);
+bindRange("frames","frames",v=>v, ()=>{computeJitter(); applyFrame();});
+bindRange("jPos","jPos",v=>v+"px", ()=>{computeJitter(); applyFrame();});
+bindRange("jRot","jRot",v=>v+"°", ()=>{computeJitter(); applyFrame();});
+bindRange("jScl","jScl",v=>v+"%", ()=>{computeJitter(); applyFrame();});
+bindRange("fHold","holdSec",v=>v+"s");
+bindRange("fTrav","travSec",v=>v+"s");
+$("fFit").addEventListener("change", e=>{ S.fit=e.target.checked; if(S.formation) runFormation(S.formation.prompt, true); });
+$("rerollBtn").onclick=()=>{ S.seed=1+Math.floor(Math.random()*99999); $("seedV").textContent=S.seed; computeJitter(); applyFrame(); };
+
+$("pScl").addEventListener("input", e=>{ const ps=selPieces(); if(!ps.length)return;
+  const k=PK(); if(S.editState==="B") ps.forEach(ensureB);
+  ps.forEach(p=>p[k.scale]=e.target.value/100); $("pSclV").textContent=e.target.value+"%"; applyFrame(); updateSelBox(); });
+$("pRot").addEventListener("input", e=>{ const ps=selPieces(); if(!ps.length)return;
+  const k=PK(); if(S.editState==="B") ps.forEach(ensureB);
+  ps.forEach(p=>p[k.rot]=+e.target.value); $("pRotV").textContent=e.target.value+"°"; applyFrame(); updateSelBox(); });
+$("pJit").addEventListener("input", e=>{ const ps=selPieces(); if(!ps.length)return;
+  ps.forEach(p=>p.jit=e.target.value/100); $("pJitV").textContent=e.target.value+"%"; computeJitter(); applyFrame(); });
+$("pCol").addEventListener("input", e=>{ selPieces().forEach(p=>setColor(p, e.target.value)); });
+$("pColReset").onclick=()=>{ selPieces().forEach(p=>setColor(p, null)); };
+$("pColAll").onclick=()=>{ const c=$("pCol").value; S.pieces.forEach(p=>setColor(p,c)); };
+
+$("bgColor").addEventListener("input", e=>{ S.bgColor=e.target.value; const r=stage.querySelector("rect"); if(r) r.setAttribute("fill",S.bgColor); });
+$("bgImgBtn").onclick=()=>$("bgIn").click();
+$("bgIn").addEventListener("change", e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ S.bgImage=r.result; $("bgImgClear").style.display=""; buildScene(); };
+  r.readAsDataURL(f); e.target.value="";
+});
+$("bgImgClear").onclick=()=>{ S.bgImage=null; $("bgImgClear").style.display="none"; buildScene(); };
+
+$("cw").addEventListener("change", e=>{ S.w=Math.max(64,+e.target.value||1080); buildScene(); });
+$("ch").addEventListener("change", e=>{ S.h=Math.max(64,+e.target.value||1080); buildScene(); });
+$("guidesChk").addEventListener("change", e=>{
+  S.guides=e.target.checked;
+  const g=stage.querySelector("#guides"); if(g) g.style.display=S.guides?"":"none";
+});
+
+/* ============================ Upload ============================ */
+$("addBtn").onclick=()=>$("fileIn").click();
+$("fileIn").addEventListener("change", async e=>{
+  let last=null;
+  for(const f of e.target.files){
+    const p = addPiece(f.name.replace(/\.svg$/i,""), await f.text());
+    if(p) last=p;
+  }
+  buildScene(); if(last) select(last.id);
+  e.target.value="";
+});
+["dragenter","dragover"].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();document.body.classList.add("dragging");}));
+["dragleave","drop"].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();if(ev==="drop"||e.target===document.body)document.body.classList.remove("dragging");}));
+document.addEventListener("drop", async e=>{
+  document.body.classList.remove("dragging");
+  let last=null;
+  for(const f of e.dataTransfer.files){
+    if(!/svg/i.test(f.type) && !/\.svg$/i.test(f.name)) continue;
+    const p = addPiece(f.name.replace(/\.svg$/i,""), await f.text());
+    if(p) last=p;
+  }
+  if(last){ buildScene(); select(last.id); }
+});
+
+/* ============================ Sample pieces ============================ */
+function wobblyPath(pts, rough){
+  let d="M"+pts[0][0].toFixed(1)+","+pts[0][1].toFixed(1);
+  for(let i=1;i<=pts.length;i++){
+    const a=pts[i-1], b=pts[i%pts.length];
+    const mx=(a[0]+b[0])/2+(Math.random()*2-1)*rough;
+    const my=(a[1]+b[1])/2+(Math.random()*2-1)*rough;
+    d+=` Q${mx.toFixed(1)},${my.toFixed(1)} ${b[0].toFixed(1)},${b[1].toFixed(1)}`;
+  }
+  return d+" Z";
+}
+function paperSquare(sz, fill){
+  const j=()=> (Math.random()*2-1)*sz*0.06;
+  const pts=[[j(),j()],[sz+j(),j()],[sz+j(),sz+j()],[j(),sz+j()]];
+  return `<svg viewBox="${-sz*0.15} ${-sz*0.15} ${sz*1.3} ${sz*1.3}"><path d="${wobblyPath(pts,sz*0.03)}" fill="${fill}"/></svg>`;
+}
+function paperQuarter(r, fill, dark){
+  return `<svg viewBox="${-r*1.15} ${-r*1.15} ${r*2.3} ${r*2.3}">
+    <path d="M ${r*(0.02-Math.random()*0.04)} ${-r} A ${r} ${r} 0 1 1 ${-r} ${r*(0.02-Math.random()*0.04)} L 0 0 Z" fill="${dark}"/>
+    <path d="M ${-r} 0 A ${r} ${r} 0 0 0 0 ${r} L 0 0 Z" fill="${fill}" transform="rotate(${(Math.random()*8-4).toFixed(1)})"/>
+  </svg>`;
+}
+$("sampleBtn").onclick=()=>{
+  const B="#181512", L="#dfe6f7";
+  const defs=[
+    [paperSquare(100,B), 370,760, 1.9],
+    [paperSquare(100,B), 620,700, 1.5],
+    [paperSquare(100,B), 620,850, 1.1],
+    [paperSquare(100,B), 800,700, 1.4],
+    [paperSquare(100,B), 800,860, 1.2],
+    [paperQuarter(90,L,B), 430,420, 1.5],
+    [paperQuarter(90,L,B), 680,410, 1.4],
+    [paperSquare(100,B), 385,330, 1.4],
+  ];
+  defs.forEach(([svg,x,y,sc],i)=> addPiece("sample-"+(i+1), svg, {x,y,scale:sc,rot:(Math.random()*8-4)|0}));
+  buildScene();
+};
+
+/* ============================ Formation (prompt → shape) ============================ */
+const SHAPES = {
+  arrow(ctx, dir){
+    ctx.save(); ctx.translate(200,200);
+    ctx.rotate(dir==="up"?-Math.PI/2:dir==="down"?Math.PI/2:dir==="left"?Math.PI:0);
+    ctx.translate(-200,-200);
+    ctx.beginPath();
+    [[30,152],[225,152],[225,75],[378,200],[225,325],[225,248],[30,248]].forEach((pt,i)=> i?ctx.lineTo(pt[0],pt[1]):ctx.moveTo(pt[0],pt[1]));
+    ctx.closePath(); ctx.fill(); ctx.restore();
+  },
+  heart(ctx){
+    ctx.beginPath();
+    for(let i=0;i<=64;i++){
+      const t=i/64*Math.PI*2;
+      const x=200+11.2*16*Math.pow(Math.sin(t),3);
+      const y=195-11.2*(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t));
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    }
+    ctx.closePath(); ctx.fill();
+  },
+  star(ctx){
+    ctx.beginPath();
+    for(let i=0;i<10;i++){
+      const r=i%2?72:180, a=-Math.PI/2+i*Math.PI/5;
+      const x=200+r*Math.cos(a), y=205+r*Math.sin(a);
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    }
+    ctx.closePath(); ctx.fill();
+  },
+  circle(ctx){ ctx.beginPath(); ctx.arc(200,200,168,0,7); ctx.fill(); },
+  square(ctx){ ctx.fillRect(55,55,290,290); },
+  triangle(ctx){ ctx.beginPath(); ctx.moveTo(200,42); ctx.lineTo(372,340); ctx.lineTo(28,340); ctx.closePath(); ctx.fill(); },
+  diamond(ctx){ ctx.beginPath(); ctx.moveTo(200,28); ctx.lineTo(372,200); ctx.lineTo(200,372); ctx.lineTo(28,200); ctx.closePath(); ctx.fill(); },
+  plus(ctx){ ctx.fillRect(148,35,104,330); ctx.fillRect(35,148,330,104); },
+  x(ctx){ ctx.save(); ctx.translate(200,200); ctx.rotate(Math.PI/4); ctx.fillRect(-52,-165,104,330); ctx.fillRect(-165,-52,330,104); ctx.restore(); },
+  moon(ctx){
+    ctx.beginPath(); ctx.arc(190,200,165,0,7); ctx.fill();
+    ctx.globalCompositeOperation="destination-out";
+    ctx.beginPath(); ctx.arc(275,155,150,0,7); ctx.fill();
+    ctx.globalCompositeOperation="source-over";
+  },
+  bolt(ctx){
+    ctx.beginPath();
+    [[235,25],[110,225],[185,225],[145,375],[305,155],[220,155],[290,25]].forEach((pt,i)=> i?ctx.lineTo(pt[0],pt[1]):ctx.moveTo(pt[0],pt[1]));
+    ctx.closePath(); ctx.fill();
+  },
+};
+const SHAPE_KEYS = ["arrow","heart","star","circle","square","triangle","diamond","plus","cross","moon","bolt","lightning"];
+
+function shapeCanvas(prompt){
+  const c = document.createElement("canvas");
+  c.width=c.height=400;
+  const ctx = c.getContext("2d", {willReadFrequently:true});
+  ctx.fillStyle="#000";
+  const low = " "+prompt.toLowerCase()+" ";
+  let label = null;
+  for(const k of SHAPE_KEYS){
+    if(low.includes(k)){ label=k; break; }
+  }
+  if(!label && /\bx\b/.test(low)) label="x";
+  if(label==="cross") label="x";
+  if(label==="lightning") label="bolt";
+
+  if(label==="arrow"){
+    const dir = low.includes("up")?"up":low.includes("down")?"down":low.includes("left")?"left":"right";
+    SHAPES.arrow(ctx,dir);
+    return {canvas:c, label:"arrow "+dir};
+  }
+  if(label){ SHAPES[label](ctx); return {canvas:c, label}; }
+
+  // fallback: spell it out
+  let text = low.replace(/\b(transform|turn|morph|change|rearrange|into|to|the|an?|a|shape|of|form|make|please|word|letter[s]?)\b/g," ").replace(/[^a-z0-9 ]/g,"").trim();
+  if(!text) text = prompt.trim().slice(0,8);
+  text = text.toUpperCase().slice(0,10);
+  ctx.font = "900 200px Arial, sans-serif";
+  let w = ctx.measureText(text).width;
+  const size = Math.max(40, Math.min(320, 200*(360/Math.max(w,1))));
+  ctx.font = `900 ${size}px Arial, sans-serif`;
+  ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.fillText(text, 200, 210);
+  return {canvas:c, label:'"'+text+'"'};
+}
+
+function samplePoints(canvas, n){
+  const ctx = canvas.getContext("2d");
+  const data = ctx.getImageData(0,0,400,400).data;
+  const st = 3, cand = [];
+  for(let y=1; y<400; y+=st)
+    for(let x=1; x<400; x+=st)
+      if(data[(y*400+x)*4+3] > 100) cand.push([x,y]);
+  if(cand.length < Math.max(n,4)) return null;
+  // start near centroid, then farthest-point sampling for even spread
+  let cx=0, cy=0;
+  cand.forEach(p=>{cx+=p[0]; cy+=p[1];}); cx/=cand.length; cy/=cand.length;
+  let si=0, sd=Infinity;
+  cand.forEach((p,i)=>{ const d=(p[0]-cx)**2+(p[1]-cy)**2; if(d<sd){sd=d;si=i;} });
+  const chosen=[cand[si]];
+  const minD = cand.map(p=>(p[0]-cand[si][0])**2+(p[1]-cand[si][1])**2);
+  while(chosen.length<n){
+    let bi=0, bd=-1;
+    for(let i=0;i<cand.length;i++) if(minD[i]>bd){bd=minD[i];bi=i;}
+    const np=cand[bi]; chosen.push(np);
+    for(let i=0;i<cand.length;i++){
+      const d=(cand[i][0]-np[0])**2+(cand[i][1]-np[1])**2;
+      if(d<minD[i]) minD[i]=d;
+    }
+  }
+  return {pts:chosen, area:cand.length*st*st};
+}
+
+function runFormation(prompt, silent){
+  if(!S.pieces.length){ alert("Add some pieces first."); return; }
+  const shape = shapeCanvas(prompt);
+  const res = samplePoints(shape.canvas, S.pieces.length);
+  if(!res){ alert("Couldn't build that shape — try another prompt."); return; }
+
+  // fit shape into central region of the canvas
+  let minx=1e9,miny=1e9,maxx=-1e9,maxy=-1e9;
+  res.pts.forEach(([x,y])=>{ minx=Math.min(minx,x);miny=Math.min(miny,y);maxx=Math.max(maxx,x);maxy=Math.max(maxy,y); });
+  const sw=Math.max(maxx-minx,1), sh=Math.max(maxy-miny,1);
+  const fitScale = Math.min(S.w*0.72/sw, S.h*0.72/sh);
+  const ox = S.w/2 - (minx+sw/2)*fitScale;
+  const oy = S.h/2 - (miny+sh/2)*fitScale;
+  const targets = res.pts.map(([x,y])=>[x*fitScale+ox, y*fitScale+oy]);
+
+  // piece size at the formation: roughly tile the shape
+  const cell = Math.sqrt(res.area/S.pieces.length)*fitScale;
+
+  // greedy min-distance assignment (pieces ↔ targets)
+  const pairs=[];
+  S.pieces.forEach((p,i)=>targets.forEach((t,j)=>{
+    pairs.push([(p.x-t[0])**2+(p.y-t[1])**2, i, j]);
+  }));
+  pairs.sort((a,b)=>a[0]-b[0]);
+  const uP=new Set(), uT=new Set();
+  for(const [,i,j] of pairs){
+    if(uP.has(i)||uT.has(j)) continue;
+    uP.add(i); uT.add(j);
+    const p=S.pieces[i], t=targets[j];
+    p.tx=t[0]; p.ty=t[1];
+    const r = mulberry32(S.seed*131 + p.id*17);
+    p.trot = p.rot + (r()*2-1)*12;
+    const maxDim = Math.max(p.vb[2], p.vb[3]);
+    p.tscale = S.fit ? Math.min(Math.max(cell*1.45/maxDim, 0.03), 20) : p.scale;
+    if(uP.size===S.pieces.length) break;
+  }
+
+  S.formation = {prompt, label: shape.label};
+  S.frame = 0;
+  $("fStatus").style.display="";
+  $("fName").textContent = "→ "+shape.label;
+  if(!silent) applyFrame();
+  restartTimer();
+}
+
+$("fGo").onclick=()=>{ const v=$("fPrompt").value.trim(); if(v) runFormation(v); };
+$("fPrompt").addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); $("fGo").click(); } });
+$("fShuffle").onclick=()=>{
+  if(!S.formation) return;
+  // rotate piece order to force a different assignment
+  S.pieces.push(S.pieces.shift());
+  buildScene();
+  runFormation(S.formation.prompt, true);
+};
+$("fClear").onclick=()=>{
+  S.formation=null; S.frame=0; S.forceMix=null; S.editState="A";
+  $("stateA").classList.add("on"); $("stateB").classList.remove("on");
+  S.pieces.forEach(p=>{p.tx=p.ty=null;});
+  $("fStatus").style.display="none";
+  applyFrame(); restartTimer(); syncSel();
+};
+
+/* ============================ Export animated SVG ============================ */
+function buildExport(){
+  computeJitter();
+  const fm = S.forceMix; S.forceMix = null;   // export the full loop, not the editing preview
+  const cyc = cycleFrames();
+  const dur = (cyc/S.fps).toFixed(4);
+  let css = `.jig{transform-box:view-box;transform-origin:0 0;animation-duration:${dur}s;animation-iteration-count:infinite;animation-timing-function:steps(1,end);}`;
+  let body = `<rect width="${S.w}" height="${S.h}" fill="${S.bgColor}"/>`;
+  if(S.bgImage) body += `<image width="${S.w}" height="${S.h}" preserveAspectRatio="xMidYMid slice" href="${S.bgImage}"/>`;
+
+  S.pieces.forEach((p,i)=>{
+    let kf="";
+    for(let f=0; f<cyc; f++){
+      const [x,y,r,s] = transformAt(p,f);
+      kf += `${(f/cyc*100).toFixed(3)}%{transform:translate(${x.toFixed(2)}px,${y.toFixed(2)}px) rotate(${r.toFixed(2)}deg) scale(${s.toFixed(4)})}`;
+    }
+    const [x0,y0,r0,s0] = transformAt(p,0);
+    kf += `100%{transform:translate(${x0.toFixed(2)}px,${y0.toFixed(2)}px) rotate(${r0.toFixed(2)}deg) scale(${s0.toFixed(4)})}`;
+    css += `@keyframes j${i}{${kf}} #jig${i}{animation-name:j${i};}`;
+    const [,,vw,vh]=p.vb;
+    body += `<g id="jig${i}" class="jig"><svg viewBox="${p.vb.join(" ")}" x="${-vw/2}" y="${-vh/2}" width="${vw}" height="${vh}" overflow="visible"${p.color?` fill="${p.color}"`:""}>${curInner(p)}</svg></g>`;
+  });
+
+  S.forceMix = fm;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S.w} ${S.h}" width="${S.w}" height="${S.h}">`
+       + `<style>${css}</style>${body}</svg>`;
+}
+function download(name, text, type){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([text],{type}));
+  a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+}
+$("exportBtn").onclick=()=>{
+  if(!S.pieces.length){ alert("Add some pieces first."); return; }
+  download("paper-motion.svg", buildExport(), "image/svg+xml");
+};
+
+/* ============================ GIF / MP4 export ============================ */
+function frameSVG(f){
+  let body = `<rect width="${S.w}" height="${S.h}" fill="${S.bgColor}"/>`;
+  if(S.bgImage) body += `<image width="${S.w}" height="${S.h}" preserveAspectRatio="xMidYMid slice" href="${S.bgImage}"/>`;
+  for(const p of S.pieces){
+    const [x,y,r,s] = transformAt(p,f);
+    const [,,vw,vh] = p.vb;
+    body += `<g transform="translate(${x} ${y}) rotate(${r}) scale(${s})"><svg viewBox="${p.vb.join(" ")}" x="${-vw/2}" y="${-vh/2}" width="${vw}" height="${vh}" overflow="visible"${p.color?` fill="${p.color}"`:""}>${curInner(p)}</svg></g>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${S.w} ${S.h}" width="${S.w}" height="${S.h}">${body}</svg>`;
+}
+function loadFrameImage(f){
+  return new Promise((res,rej)=>{
+    const img = new Image();
+    const url = URL.createObjectURL(new Blob([frameSVG(f)],{type:"image/svg+xml"}));
+    img.onload = ()=>{ URL.revokeObjectURL(url); res(img); };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); rej(new Error("frame render failed")); };
+    img.src = url;
+  });
+}
+async function renderAllFrames(onProgress){
+  computeJitter();
+  const fm = S.forceMix; S.forceMix = null;   // export the full loop, not the editing preview
+  const cyc = cycleFrames();
+  const imgs = [];
+  try{
+    for(let f=0; f<cyc; f++){
+      imgs.push(await loadFrameImage(f));
+      onProgress && onProgress(f+1, cyc);
+    }
+  } finally { S.forceMix = fm; }
+  return imgs;
+}
+let gifLibP = null;
+function loadGifLib(){
+  if(window.GIF) return Promise.resolve();
+  if(!gifLibP) gifLibP = new Promise((res,rej)=>{
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.js";
+    s.onload = res;
+    s.onerror = ()=>{ gifLibP=null; rej(new Error("couldn't load the GIF encoder — check your internet connection")); };
+    document.head.appendChild(s);
+  });
+  return gifLibP;
+}
+function saveBlob(name, blob){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 5000);
+}
+$("gifBtn").onclick = async ()=>{
+  if(!S.pieces.length){ alert("Add some pieces first."); return; }
+  const btn = $("gifBtn"); btn.disabled = true;
+  try{
+    btn.textContent = "Loading…";
+    await loadGifLib();
+    const workerSrc = await (await fetch("https://cdnjs.cloudflare.com/ajax/libs/gif.js/0.2.0/gif.worker.js")).text();
+    const workerURL = URL.createObjectURL(new Blob([workerSrc],{type:"application/javascript"}));
+    const imgs = await renderAllFrames((i,n)=>btn.textContent=`Frames ${i}/${n}`);
+    const cnv = document.createElement("canvas"); cnv.width=S.w; cnv.height=S.h;
+    const ctx = cnv.getContext("2d");
+    const gif = new GIF({workers:2, quality:8, width:S.w, height:S.h, workerScript:workerURL});
+    imgs.forEach(img=>{
+      ctx.clearRect(0,0,S.w,S.h); ctx.drawImage(img,0,0,S.w,S.h);
+      gif.addFrame(ctx, {copy:true, delay:Math.round(1000/S.fps)});
+    });
+    gif.on("progress", p=>btn.textContent=`Encoding ${(p*100)|0}%`);
+    await new Promise(res=>{
+      gif.on("finished", blob=>{ saveBlob("paper-motion.gif", blob); res(); });
+      gif.render();
+    });
+    URL.revokeObjectURL(workerURL);
+  }catch(err){ alert("GIF export failed: "+err.message); }
+  btn.disabled = false; btn.textContent = "GIF";
+};
+$("mp4Btn").onclick = async ()=>{
+  if(!S.pieces.length){ alert("Add some pieces first."); return; }
+  const btn = $("mp4Btn"); btn.disabled = true;
+  try{
+    if(!("MediaRecorder" in window)) throw new Error("video recording isn't supported in this browser");
+    const imgs = await renderAllFrames((i,n)=>btn.textContent=`Frames ${i}/${n}`);
+    const cnv = document.createElement("canvas"); cnv.width=S.w; cnv.height=S.h;
+    const ctx = cnv.getContext("2d");
+    ctx.drawImage(imgs[0],0,0);
+    const stream = cnv.captureStream(S.fps);
+    let mime="video/mp4", ext="mp4";
+    if(!MediaRecorder.isTypeSupported(mime)){
+      ext="webm";
+      mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm";
+    }
+    const rec = new MediaRecorder(stream, {mimeType:mime, videoBitsPerSecond:8000000});
+    const chunks = [];
+    rec.ondataavailable = e=>{ if(e.data.size) chunks.push(e.data); };
+    const stopped = new Promise(res=>rec.onstop=res);
+    rec.start();
+    const cyc = cycleFrames(), total = cyc*2;   // record two loops in real time
+    await new Promise(res=>{
+      let f = 0;
+      const iv = setInterval(()=>{
+        ctx.clearRect(0,0,S.w,S.h); ctx.drawImage(imgs[f%cyc],0,0);
+        btn.textContent = `Recording ${f+1}/${total}`;
+        if(++f >= total){ clearInterval(iv); res(); }
+      }, 1000/S.fps);
+    });
+    rec.stop(); await stopped;
+    saveBlob("paper-motion."+ext, new Blob(chunks,{type:mime}));
+    if(ext==="webm") alert("This browser can't record MP4 directly, so you got a WebM instead — same quality, and any online converter can turn it into MP4.");
+  }catch(err){ alert("Video export failed: "+err.message); }
+  btn.disabled = false; btn.textContent = "MP4";
+};
+
+/* ============================ Save / load project ============================ */
+$("saveBtn").onclick=()=>{
+  const data = {
+    v:2, w:S.w, h:S.h, bgColor:S.bgColor, bgImage:S.bgImage,
+    fps:S.fps, frames:S.frames, seed:S.seed, jPos:S.jPos, jRot:S.jRot, jScl:S.jScl,
+    holdSec:S.holdSec, travSec:S.travSec, fit:S.fit, guides:S.guides, formation:S.formation,
+    pieces: S.pieces.map(p=>({name:p.name, svgText:p.svgText, color:p.color,
+      x:p.x, y:p.y, scale:p.scale, rot:p.rot, jit:p.jit,
+      tx:p.tx, ty:p.ty, trot:p.trot, tscale:p.tscale}))
+  };
+  download("paper-motion-project.json", JSON.stringify(data), "application/json");
+};
+$("loadBtn").onclick=()=>$("projIn").click();
+$("projIn").addEventListener("change", async e=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{
+    const d = JSON.parse(await f.text());
+    Object.assign(S,{w:d.w,h:d.h,bgColor:d.bgColor,bgImage:d.bgImage,fps:d.fps,frames:d.frames,
+      seed:d.seed,jPos:d.jPos,jRot:d.jRot,jScl:d.jScl,
+      holdSec:d.holdSec??1.2,travSec:d.travSec??1,fit:d.fit??true,guides:d.guides??true,formation:d.formation??null,
+      pieces:[],sel:new Set(),frame:0});
+    d.pieces.forEach(p=>addPiece(p.name,p.svgText,p));
+    $("cw").value=S.w; $("ch").value=S.h; $("bgColor").value=S.bgColor;
+    $("bgImgClear").style.display=S.bgImage?"":"none";
+    [["fps",S.fps,""],["frames",S.frames,""],["jPos",S.jPos,"px"],["jRot",S.jRot,"°"],["jScl",S.jScl,"%"],
+     ["fHold",S.holdSec,"s"],["fTrav",S.travSec,"s"]]
+      .forEach(([id,v,u])=>{ $(id).value=v; $(id+"V").textContent=v+u; });
+    $("seedV").textContent=S.seed;
+    $("fFit").checked=S.fit;
+    $("guidesChk").checked=S.guides;
+    if(S.formation){ $("fStatus").style.display=""; $("fName").textContent="→ "+S.formation.label; $("fPrompt").value=S.formation.prompt; }
+    else $("fStatus").style.display="none";
+    buildScene(); restartTimer();
+  }catch(err){ alert("Couldn't load project: "+err.message); }
+  e.target.value="";
+});
+
+/* ============================ Init ============================ */
+buildScene();
+restartTimer();
+</script>
+</body>
+</html>

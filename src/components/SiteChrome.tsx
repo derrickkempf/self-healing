@@ -340,6 +340,7 @@ const PUBLIC_NAV: NavLinkItem[] = [
   { kind: "route", label: "Story", to: "/story" },
   { kind: "anchor", label: "Progress", href: "#progress", base: "/" },
   { kind: "anchor", label: "Gallery", href: "#gallery", base: "/" },
+  { kind: "route", label: "Create", to: "/create" },
   { kind: "route", label: "Notify", to: "/notify" },
   // Login for returning collaborators. Sits at the far right of the
   // desktop nav; also appears in the mobile drawer.

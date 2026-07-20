@@ -132,6 +132,33 @@ The project is set up to deploy to Vercel with zero configuration. A `vercel.jso
 
 ---
 
+## Kit (ConvertKit) integration for the notify list
+
+The `/notify` form is optionally wired to Kit so signups flow into an email delivery tool alongside the Supabase record. Set two env vars and the site pushes each signup into a Kit form automatically:
+
+```
+VITE_KIT_FORM_ID=1234567
+VITE_KIT_API_KEY=your_public_api_key_here
+```
+
+Where to find them:
+
+- **Form ID.** Kit → Grow → Landing Pages & Forms → your form → the numeric id in the URL when you're editing it.
+- **API key.** Kit → Settings → Advanced → API Keys → **API Key** (the *public* one). Do **not** use "API Secret" — that key grants admin access to your Kit account and is not safe in a browser bundle.
+
+Behaviour with both set:
+
+- Every notify signup gets inserted into Supabase (`public.signups`) AND subscribed to the Kit form.
+- Kit is fire-and-forget — if the Kit request fails, the user still sees success and the row is still in Supabase.
+- Supabase remains the source of truth. Kit is only for email delivery.
+
+Behaviour with them unset:
+
+- Signup still goes into Supabase.
+- No Kit call is made (the helper is a no-op if the env vars are missing).
+
+---
+
 ## Editable content (the built-in CMS)
 
 Any block of copy on the public site can be made editable through the in-app **Content** card on the dashboard. There is no external CMS to run.
