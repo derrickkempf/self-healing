@@ -105,7 +105,9 @@
 
   aside{
     width:256px; flex:none;
-    background:var(--panel); border-left:1px solid var(--line);
+    background:var(--panel);
+    border-left:1px solid var(--line);
+    border-top:1px solid var(--line);
     overflow-y:auto; padding-bottom:40px;
   }
   section{border-bottom:1px solid var(--line); padding:12px 14px;}
@@ -145,6 +147,13 @@
   input[type=file]{display:none;}
   #dropHint{position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(255,255,255,.07); border:3px dashed var(--accent); font-size:20px; pointer-events:none; z-index:10;}
   body.dragging #dropHint{display:flex;}
+
+  /* Hide the header logo below the site's xl breakpoint — same
+     as the outer site, where the top-right logo disappears from
+     the chrome and moves to the mobile footer. */
+  @media (max-width: 1279.98px) {
+    #headerLogo { display:none; }
+  }
 
   /* On narrow screens push the tools panel below the stage. */
   @media (max-width: 900px) {
