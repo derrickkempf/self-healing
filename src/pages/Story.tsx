@@ -155,7 +155,7 @@ export default function Story() {
           uses so what an editor sees is what a reader gets.
         */}
         <style>{`
-          .story-body h2, .story-body h3 { font-family: "Instrument Serif", serif; color: #ffffff; text-transform: uppercase; letter-spacing: 0.03em; line-height: 1.1; }
+          .story-body h2, .story-body h3 { font-family: "DD Scottish Dewd Condensed", serif; color: #ffffff; text-transform: uppercase; letter-spacing: 0.03em; line-height: 1.1; }
           .story-body h2 { font-size: 26px; margin: 0.8em 0 0.4em; }
           .story-body h3 { font-size: 18px; margin: 0.8em 0 0.4em; }
           .story-body p { margin: 0 0 0.8em; }

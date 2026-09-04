@@ -81,8 +81,8 @@ export function AboutContent() {
       <style>{`
         .cms-body p { margin: 0 0 1em; }
         .cms-body p:last-child { margin-bottom: 0; }
-        .cms-body h2 { font-family: "Instrument Serif", serif; font-size: 26px; text-transform: uppercase; letter-spacing: 0.03em; color: #fff; margin: 0.8em 0 0.4em; line-height: 1.1; }
-        .cms-body h3 { font-family: "Instrument Serif", serif; font-size: 18px; text-transform: uppercase; letter-spacing: 0.03em; color: #fff; margin: 0.8em 0 0.4em; }
+        .cms-body h2 { font-family: "DD Scottish Dewd Condensed", serif; font-size: 26px; text-transform: uppercase; letter-spacing: 0.03em; color: #fff; margin: 0.8em 0 0.4em; line-height: 1.1; }
+        .cms-body h3 { font-family: "DD Scottish Dewd Condensed", serif; font-size: 18px; text-transform: uppercase; letter-spacing: 0.03em; color: #fff; margin: 0.8em 0 0.4em; }
         .cms-body ul, .cms-body ol { padding-left: 1.4em; margin: 0 0 1em; }
         .cms-body ul { list-style: disc; }
         .cms-body ol { list-style: decimal; }

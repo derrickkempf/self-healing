@@ -8,12 +8,9 @@
   Fonts — hosted at /fonts/ by the parent Vite app. The iframe pulls
   them via relative URL and the same @font-face rules the main site
   uses, so this tool renders in CMU Typewriter Text to match the rest
-  of Self-Healing. Instrument Serif comes from Google Fonts, matching
-  what the outer app loads in index.html for h1/h2 display type.
+  of Self-Healing. The display serif (DD Scottish Dewd Condensed) is
+  also self-hosted, matching what the outer app loads for h1/h2 type.
 -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap">
 <style>
   @font-face {
     font-family: "CMU Typewriter Text";
@@ -28,6 +25,14 @@
     src: url("/fonts/CMUTypewriter-Bold.woff2") format("woff2"),
          url("/fonts/CMUTypewriter-Bold.woff") format("woff");
     font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: "DD Scottish Dewd Condensed";
+    src: url("/fonts/DD-Scottish-Dewd-Condensed.woff2") format("woff2"),
+         url("/fonts/DD-Scottish-Dewd-Condensed.woff") format("woff");
+    font-weight: 400;
     font-style: normal;
     font-display: swap;
   }
@@ -70,7 +75,7 @@
     padding:10px 20px; min-width:0;
   }
   header h1{
-    font-family: "Instrument Serif", serif;
+    font-family: "DD Scottish Dewd Condensed", serif;
     font-size:30px; font-weight:500; letter-spacing:0;
     text-transform:uppercase; color:#ffffff; line-height:1;
   }
@@ -112,7 +117,7 @@
   }
   section{border-bottom:1px solid var(--line); padding:12px 14px;}
   section h2{
-    font-family: "Instrument Serif", serif;
+    font-family: "DD Scottish Dewd Condensed", serif;
     font-size:18px; text-transform:uppercase; letter-spacing:1px;
     color:#ffffff; margin-bottom:10px; line-height:1.1;
   }

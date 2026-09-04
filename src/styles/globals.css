@@ -39,6 +39,20 @@
   font-display: swap;
 }
 
+/* ============================================================================
+ * Display serif — DD Scottish Dewd Condensed, self-hosted from /public/fonts.
+ * Replaces Instrument Serif as the site's h1/h2/h3/.serif face. Regular
+ * weight only (the family ships one style).
+ * ============================================================================ */
+@font-face {
+  font-family: "DD Scottish Dewd Condensed";
+  src: url("/fonts/DD-Scottish-Dewd-Condensed.woff2") format("woff2"),
+       url("/fonts/DD-Scottish-Dewd-Condensed.woff") format("woff");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   color-scheme: dark;
   /* The site's fundamental unit. Everything corner-related (logo box,
@@ -86,7 +100,7 @@ h1,
 h2,
 h3,
 .serif {
-  font-family: "Instrument Serif", serif;
+  font-family: "DD Scottish Dewd Condensed", serif;
   letter-spacing: -0.01em;
   font-weight: 400;
 }

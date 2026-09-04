@@ -92,14 +92,14 @@ export default function RichTextEditor({
 
       {/*
         Inline styles so the editor content renders like the rest of the
-        site — Instrument Serif for headings, CMU Typewriter for body,
+        site — DD Scottish Dewd Condensed for headings, CMU Typewriter for body,
         proper spacing on lists / blockquotes. Kept scoped via .rte-body
         so it doesn't leak into other prose on the page.
       */}
       <style>{`
         .rte-body .prose-rte { min-height: 100%; font-family: "CMU Typewriter Text", monospace; font-size: 13px; line-height: 1.6; color: rgba(255,255,255,0.85); }
-        .rte-body h2 { font-family: "Instrument Serif", serif; font-size: 24px; line-height: 1.1; margin: 0.8em 0 0.4em; text-transform: uppercase; letter-spacing: 0.03em; color: #fff; }
-        .rte-body h3 { font-family: "Instrument Serif", serif; font-size: 18px; line-height: 1.2; margin: 0.8em 0 0.4em; color: #fff; }
+        .rte-body h2 { font-family: "DD Scottish Dewd Condensed", serif; font-size: 24px; line-height: 1.1; margin: 0.8em 0 0.4em; text-transform: uppercase; letter-spacing: 0.03em; color: #fff; }
+        .rte-body h3 { font-family: "DD Scottish Dewd Condensed", serif; font-size: 18px; line-height: 1.2; margin: 0.8em 0 0.4em; color: #fff; }
         .rte-body p { margin: 0 0 0.8em; }
         .rte-body ul, .rte-body ol { padding-left: 1.4em; margin: 0 0 0.8em; }
         .rte-body ul { list-style: disc; }

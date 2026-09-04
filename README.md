@@ -29,7 +29,7 @@ The site is a small React SPA that acts as both a public storefront and a privat
 - Masonry gallery with lazy-loaded, blur-up image reveals and a lightbox on click.
 - Delete affordances on your own updates and messages; RLS-enforced ownership.
 - Fully responsive: desktop uses a free-form draggable stage; tablet and mobile fall back to a flex-wrap flow with a hamburger drawer nav.
-- Fonts self-hosted from `public/fonts/` (CMU Typewriter Text) plus Instrument Serif from Google Fonts.
+- Fonts self-hosted from `public/fonts/` — CMU Typewriter Text (body) and DD Scottish Dewd Condensed (display/headings).
 - Custom intro overlay animation on first visit each session.
 
 ---
@@ -202,7 +202,7 @@ The site is built on a 32-pixel cell. Everything — the background grid, the ca
 - **Base color:** `#1a1a1a` charcoal
 - **Text:** white at three opacities (`#ffffff`, `#ffffff70`, `#ffffff45`)
 - **Lines:** `rgba(255, 255, 255, 0.15)` for borders, `0.10` for the grid
-- **Type:** *Instrument Serif* for display, *CMU Typewriter Text* for everything else
+- **Type:** *DD Scottish Dewd Condensed* for display, *CMU Typewriter Text* for everything else
 - **Grid unit:** exposed as `--cell: 32px` in CSS
 
 ---
