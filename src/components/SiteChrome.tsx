@@ -34,6 +34,18 @@ import { useIsAdmin } from "../utils/useIsAdmin";
  *                    bottom-right, single content column.
  *   Desktop (xl+):   same chrome as tablet, but the content area splits
  *                    into three columns handled by the page's children.
+ *
+ * Scrolling model:
+ *   Every chrome layer below (grid, strips, diagonal, nav, logo, footer)
+ *   is `position: absolute` inside this component's `relative` root,
+ *   NOT `position: fixed` to the viewport. That means they participate
+ *   in normal document flow and scroll away with the rest of the page,
+ *   and the grid/right-strip backgrounds (which use `top/bottom: 0`)
+ *   stretch to match the page's actual full height rather than being
+ *   clipped to one viewport. Only two overlays stay `fixed` on
+ *   purpose: the mobile nav drawer (NavOverlay) and the page-transition
+ *   overlay, both of which are meant to always cover the whole screen
+ *   regardless of scroll position.
  */
 
 interface Props {
@@ -44,12 +56,19 @@ interface Props {
   /** Hide the corner footer block (rarely useful — leave true for a
       minimal chrome, e.g., during auth flow if desired). */
   hideFooter?: boolean;
+  /** Strip the chrome down to just the top nav strip — no grid, no
+      right strip, no diagonal, no logo, no footer. Used by pages that
+      need the full viewport for their own content (e.g. Create's
+      embedded tool) but should still share the exact same nav as
+      every other page. */
+  chromeless?: boolean;
 }
 
 export default function SiteChrome({
   children,
   variant = "public",
   hideFooter = false,
+  chromeless = false,
 }: Props) {
   const [navOpen, setNavOpen] = useState(false);
 
@@ -73,97 +92,120 @@ export default function SiteChrome({
       style={{ background: "#1a1a1a" }}
     >
       {/* ═══════════════════════════════════════════════════════════════
-          GRID AREA — fixed to the viewport. On mobile it starts below
-          the top strip and spans the full width. On tablet+ it also
-          leaves a right strip. This is the ONLY place the grid pattern
-          is visible.
+          GRID AREA — absolute within the page (not fixed to the
+          viewport), so it stretches to the page's full scrollable
+          height and scrolls away with everything else. On mobile it
+          starts below the top strip and spans the full width. On
+          tablet+ it also leaves a right strip. This is the ONLY place
+          the grid pattern is visible. Skipped entirely in chromeless
+          mode.
           =══════════════════════════════════════════════════════════════ */}
-      <div
-        aria-hidden
-        className="sh-grid fixed left-0 z-0 pointer-events-none"
-        style={{
-          top: "var(--cell)",
-          right: 0,
-          bottom: 0,
-        }}
-      />
+      {!chromeless && (
+        <div
+          aria-hidden
+          className="sh-grid absolute left-0 z-0 pointer-events-none"
+          style={{
+            top: "var(--cell)",
+            right: 0,
+            bottom: 0,
+          }}
+        />
+      )}
       {/* Right chrome strip: overlays the grid on tablet+ from the right
           edge inward by one cell. Mobile has none. Includes a subtle 1px
           left border that draws the right edge of the grid area itself
           (previously invisible). */}
-      <div
-        aria-hidden
-        className="hidden md:block fixed top-0 bottom-0 right-0 z-0 pointer-events-none border-l border-white/10"
-        style={{ width: "var(--cell)", background: "#1a1a1a" }}
-      />
+      {!chromeless && (
+        <div
+          aria-hidden
+          className="hidden md:block absolute top-0 bottom-0 right-0 z-0 pointer-events-none border-l border-white/10"
+          style={{ width: "var(--cell)", background: "#1a1a1a" }}
+        />
+      )}
       {/* Top chrome strip. Adds a 1px bottom border so the boundary
-          between the strip and the grid reads clearly. */}
+          between the strip and the grid reads clearly. On tablet+ (in
+          non-chromeless mode) it stops exactly at the right chrome
+          strip's left edge instead of spanning the full width — that
+          full-width span used to paint the strip's background (and its
+          bottom border line) straight across the top-right corner,
+          crossing over/under the right strip's vertical border and
+          making the corner look like a "+" instead of a clean L. */}
       <div
         aria-hidden
-        className="fixed top-0 left-0 right-0 z-0 pointer-events-none border-b border-white/10"
+        className={`absolute top-0 left-0 right-0 z-0 pointer-events-none border-b border-white/10 ${
+          chromeless ? "" : "md:right-[var(--cell)]"
+        }`}
         style={{ height: "var(--cell)", background: "#1a1a1a" }}
       />
 
       {/* ═══════════════════════════════════════════════════════════════
-          DIAGONAL — from bottom-left of the viewport up to the top-right
-          corner of the GRID area. Grid area's top-right corner is at
-          (viewport_width - right_strip, top_strip) on tablet+, or
-          (viewport_width, top_strip) on mobile. Using a fixed-position
-          SVG with a viewBox that matches viewport dimensions is fragile,
-          so instead we render two SVGs — one mobile, one tablet+ — with
-          different endpoints. Both are z-index 1 so they sit above the
-          grid but below content (z-10).
+          DIAGONAL — from the bottom-left of the page up to the
+          top-right corner of the GRID area. Absolute + inset-0 + w/h
+          full so it scales with the page's actual rendered box (not
+          the viewport), scrolling away with the rest of the chrome.
+          Two SVGs — one mobile, one tablet+ — with different
+          endpoints. Both sit above the grid but below content.
+          Skipped in chromeless mode.
           =══════════════════════════════════════════════════════════════ */}
-      <svg
-        aria-hidden
-        className="fixed inset-0 w-screen h-screen z-[1] pointer-events-none md:hidden"
-        preserveAspectRatio="none"
-        viewBox="0 0 100 100"
-      >
-        <line
-          x1="0"
-          y1="100"
-          x2="100"
-          y2="3.2"
-          stroke="rgba(255,255,255,0.12)"
-          strokeWidth="0.15"
-          vectorEffect="non-scaling-stroke"
-        />
-      </svg>
-      <svg
-        aria-hidden
-        className="hidden md:block fixed inset-0 w-screen h-screen z-[1] pointer-events-none"
-        preserveAspectRatio="none"
-        viewBox="0 0 100 100"
-      >
-        {/* End point at ~(96.8%, 3.2%) which corresponds to (100vw - 32px,
-            32px) at a 1000px wide viewport. Non-scaling stroke keeps the
-            line 1px regardless of viewBox distortion. */}
-        <line
-          x1="0"
-          y1="100"
-          x2="96.8"
-          y2="3.2"
-          stroke="rgba(255,255,255,0.12)"
-          strokeWidth="0.15"
-          vectorEffect="non-scaling-stroke"
-        />
-      </svg>
+      {!chromeless && (
+        <>
+          <svg
+            aria-hidden
+            className="absolute inset-0 w-full h-full z-[1] pointer-events-none md:hidden"
+            preserveAspectRatio="none"
+            viewBox="0 0 100 100"
+          >
+            <line
+              x1="0"
+              y1="100"
+              x2="100"
+              y2="3.2"
+              stroke="rgba(255,255,255,0.12)"
+              strokeWidth="0.15"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+          <svg
+            aria-hidden
+            className="hidden md:block absolute inset-0 w-full h-full z-[1] pointer-events-none"
+            preserveAspectRatio="none"
+            viewBox="0 0 100 100"
+          >
+            {/* End point at ~(96.8%, 3.2%) which corresponds to
+                (100% - 32px, 32px) at a 1000px wide viewport.
+                Non-scaling stroke keeps the line 1px regardless of
+                viewBox distortion. */}
+            <line
+              x1="0"
+              y1="100"
+              x2="96.8"
+              y2="3.2"
+              stroke="rgba(255,255,255,0.12)"
+              strokeWidth="0.15"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+        </>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════
           CHROME ELEMENTS — nav (top-left), logo (top-right), footer
-          (bottom-right). All fixed to viewport. Above the diagonal and
-          the grid.
+          (bottom-right). All absolute within the page. Above the
+          diagonal and the grid. The nav renders in every mode
+          (including chromeless) so navigation is identical everywhere;
+          logo + footer are skipped in chromeless mode.
           =══════════════════════════════════════════════════════════════ */}
       <TopLeftNav variant={variant} onOpen={() => setNavOpen(true)} />
-      <TopRightLogo />
-      {!hideFooter && <BottomRightFooter />}
+      {!chromeless && <TopRightLogo />}
+      {!hideFooter && !chromeless && <BottomRightFooter />}
 
       {/* ═══════════════════════════════════════════════════════════════
           PAGE CONTENT — flows inside the content area. Padding leaves
-          room for the fixed chrome so content isn't hidden underneath.
-          On mobile the logo is now part of the bottom cluster, so top
+          room for the chrome so content isn't hidden underneath. On
+          mobile the logo is now part of the bottom cluster, so top
           padding only needs to clear the hamburger + top chrome strip.
+          Chromeless mode only reserves the single top-strip cell —
+          there's no logo cluster to clear.
           `pointer-events: none` on the wrapper lets clicks pass through
           to the chrome underneath (logo, corner links); each interactive
           descendant (card, button, form) opts back in with the
@@ -173,15 +215,21 @@ export default function SiteChrome({
           becomes non-clickable.
           =══════════════════════════════════════════════════════════════ */}
       <div
-        className="relative z-10 pt-14 xl:pt-24 pointer-events-none"
-        style={{ paddingRight: "var(--cell)" }}
+        className={`relative z-10 pointer-events-none ${
+          chromeless ? "" : "pt-14 xl:pt-24"
+        }`}
+        style={{
+          paddingRight: chromeless ? 0 : "var(--cell)",
+          ...(chromeless ? { paddingTop: "var(--cell)" } : {}),
+        }}
       >
         {children}
 
         {/* Mobile / tablet footer — rendered here (after content) so it
             flows to the bottom of the page. Hidden on xl+ because there
-            the footer lives in the fixed top-right chrome instead. */}
-        {!hideFooter && <MobileFooter />}
+            the footer lives in the top-right chrome instead. Skipped
+            in chromeless mode along with the rest of the footer. */}
+        {!hideFooter && !chromeless && <MobileFooter />}
       </div>
 
       {navOpen && (
@@ -246,7 +294,7 @@ function TopLeftNav({
         onClick={onOpen}
         aria-label="Open menu"
         className="
-          xl:hidden fixed z-30 p-2 text-white/70 hover:text-white transition
+          xl:hidden absolute z-30 p-2 text-white/70 hover:text-white transition
           top-1 left-1/2 -translate-x-1/2
           md:top-1 md:left-2 md:translate-x-0
         "
@@ -268,7 +316,7 @@ function TopLeftNav({
       {/* Text nav — desktop only. Inside the top chrome strip at top-left. */}
       <nav
         aria-label="Primary"
-        className="hidden xl:flex items-center gap-3 fixed top-0 left-3 z-30"
+        className="hidden xl:flex items-center gap-3 absolute top-0 left-3 z-30"
         style={{ height: "var(--cell)" }}
       >
         {items.map((item, i) => (
@@ -459,7 +507,7 @@ function TopRightLogo() {
     <Link
       to="/"
       aria-label="Self-Healing — home"
-      className="hidden xl:block fixed z-[2] hover:opacity-80 transition-opacity border border-white/15"
+      className="hidden xl:block absolute z-[2] hover:opacity-80 transition-opacity border border-white/15"
       style={{
         top: "var(--cell)",
         right: "var(--cell)",
@@ -523,7 +571,7 @@ function BottomRightFooter() {
   // dragged card can float over the top-right cluster.
   return (
     <div
-      className="hidden xl:flex fixed z-[2] flex-col items-end"
+      className="hidden xl:flex absolute z-[2] flex-col items-end"
       style={{
         right: "var(--cell)",
         top: "calc(var(--cell) * 4)",
