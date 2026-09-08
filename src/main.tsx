@@ -11,7 +11,6 @@ import Dashboard from "./pages/Dashboard";
 import Chat from "./pages/Chat";
 import Settings from "./pages/Settings";
 import AuthGuard from "./components/AuthGuard";
-import IntroOverlay from "./components/IntroOverlay";
 import PageTransition from "./components/PageTransition";
 
 import "./styles/globals.css";
@@ -19,17 +18,15 @@ import "./styles/globals.css";
 /**
  * App shell.
  *
- *   IntroOverlay  — full-screen one-shot intro (z-100); plays once per session
  *   PageTransition — fade + sweep between routes (z-60)
  *   <Routes>      — actual page content
+ *
+ * (The one-shot splash/intro overlay that used to play on first visit
+ * each session has been removed — the site now goes straight to the
+ * requested page.)
  */
 function App() {
-  return (
-    <>
-      <IntroOverlay />
-      <RoutedShell />
-    </>
-  );
+  return <RoutedShell />;
 }
 
 /**
