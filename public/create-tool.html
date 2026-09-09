@@ -115,26 +115,67 @@
     border-top:1px solid var(--line);
     overflow-y:auto; padding-bottom:40px;
   }
-  section{border-bottom:1px solid var(--line); padding:12px 14px;}
+  section{border-bottom:1px solid var(--line); padding:14px;}
   section h2{
     font-family: "DD Scottish Dewd Condensed", serif;
     font-size:18px; text-transform:uppercase; letter-spacing:1px;
-    color:#ffffff; margin-bottom:10px; line-height:1.1;
+    color:#ffffff; margin-bottom:12px; line-height:1.1;
+    display:flex; align-items:center;
   }
-  /* Rows shrunk to fit the 256px aside — labels 76px + val 36px + gap 6px
-     leaves ~104px of slider travel inside the section's 14px padding. */
+
+  /* Plain rows — everything that ISN'T a range slider (buttons, text
+     fields, color swatches, checkboxes). Simple label + control line. */
   .row{display:flex; align-items:center; gap:6px; margin-bottom:8px;}
-  .row label{flex:none; width:76px; color:var(--muted); font-size:11px;}
-  .row input[type=range]{flex:1; min-width:0; accent-color:var(--accent);}
-  .row .val{flex:none; width:36px; text-align:right; font-variant-numeric:tabular-nums; font-size:11px;}
+  .row label{flex:none; width:76px; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em;}
+  .row .val{flex:none; text-align:right; font-variant-numeric:tabular-nums; font-size:11px; color:var(--text);}
   .row input[type=number]{width:70px; background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--text); padding:4px 6px; font:inherit;}
   .row input[type=text]{flex:1; background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--text); padding:6px 8px; font:inherit;}
   .row input[type=color]{width:36px; height:26px; border:1px solid var(--line); border-radius:6px; background:none; padding:1px; cursor:pointer;}
   .btnrow{display:flex; gap:8px; flex-wrap:wrap;}
   .btnrow button{flex:1;}
-  .hint{color:var(--muted); font-size:11px; margin-top:6px;}
-  .toggle{display:flex; align-items:center; gap:6px; color:var(--muted); font-size:12px; cursor:pointer; user-select:none; width:auto !important;}
+  .toggle{display:flex; align-items:center; gap:6px; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em; cursor:pointer; user-select:none; width:auto !important;}
   .toggle input{accent-color:var(--accent);}
+
+  /* Slider rows — label + value on one line, thin full-width slider
+     underneath. Matches the plain "label / thin line / dot" reference
+     style instead of the old boxed panel look. */
+  .slider-row{margin-bottom:16px;}
+  .slider-row:last-child{margin-bottom:0;}
+  .slider-row .row-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;}
+  .slider-row label{color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em;}
+  .slider-row .val{color:var(--text); font-size:11px; font-variant-numeric:tabular-nums;}
+  input[type=range]{
+    -webkit-appearance:none; appearance:none;
+    width:100%; height:16px; margin:0; background:transparent; cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-runnable-track{height:1px; background:rgba(255,255,255,.25);}
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:11px; height:11px; border-radius:50%;
+    background:#fff; margin-top:-5px; box-shadow:none; border:none;
+  }
+  input[type=range]::-moz-range-track{height:1px; background:rgba(255,255,255,.25); border:none;}
+  input[type=range]::-moz-range-thumb{width:11px; height:11px; border-radius:50%; background:#fff; border:none;}
+  input[type=range]::-moz-range-progress{background:transparent;}
+
+  /* Info icon — replaces the old paragraph-length explanations under
+     each section. Hover shows the native title tooltip; click opens a
+     small floating panel with the full explanation. */
+  .info{
+    display:inline-flex; align-items:center; justify-content:center;
+    width:14px; height:14px; border-radius:50%; flex:none;
+    border:1px solid rgba(255,255,255,.35); color:rgba(255,255,255,.55);
+    font-size:9px; line-height:1; background:none; cursor:pointer;
+    margin-left:6px; padding:0; position:relative;
+    text-transform:none; letter-spacing:0; font-family:inherit;
+  }
+  .info:hover{border-color:#fff; color:#fff;}
+  .info-tip{
+    position:absolute; top:20px; left:0; width:200px;
+    background:#0d0d0d; border:1px solid var(--line); border-radius:4px;
+    padding:8px 10px; font-size:11px; line-height:1.45; color:var(--accent2);
+    text-transform:none; letter-spacing:0; z-index:30; cursor:default;
+    box-shadow:0 8px 24px rgba(0,0,0,.5);
+  }
 
   #pieceList{display:flex; flex-direction:column; gap:4px; margin-bottom:8px; max-height:220px; overflow-y:auto;}
   .pieceItem{display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:7px; background:var(--panel2); border:1px solid transparent; cursor:pointer;}
@@ -169,7 +210,7 @@
 </style>
 </head>
 <body>
-<div id="dropHint">Drop SVG files to add pieces</div>
+<div id="dropHint">Drop SVG or image files to add pieces</div>
 <header>
   <div class="header-controls">
     <h1>Create · <span>Motion Studio</span></h1>
@@ -177,6 +218,7 @@
     <button id="stepBtn" class="small" title="Advance one frame">Step ▸</button>
     <div class="spacer"></div>
     <button id="addBtn">+ Add SVGs</button>
+    <button id="addImgBtn">+ Add Images</button>
     <button id="sampleBtn">Load sample</button>
     <button id="exportBtn" class="primary">Export SVG</button>
     <button id="gifBtn">GIF</button>
@@ -195,52 +237,107 @@
 
   <aside>
     <section>
-      <h2>Transform (A → B)</h2>
+      <h2>
+        Transform (A → B)
+        <button
+          class="info"
+          type="button"
+          aria-label="About Transform"
+          title="Arrange pieces in A, switch to B and rearrange to set the end state. Play loops A → B → A. Auto-fill B with a prompt — known shapes: arrow, heart, star, circle, square, triangle, diamond, plus, x, moon, bolt. Anything else is spelled out as letters. Runs fully offline, no AI. Fine-tune in B mode afterward."
+          data-tip="Arrange pieces in A, switch to B and rearrange to set the end state. Play loops A → B → A. Auto-fill B with a prompt — known shapes: arrow, heart, star, circle, square, triangle, diamond, plus, x, moon, bolt. Anything else is spelled out as letters. Runs fully offline, no AI. Fine-tune in B mode afterward."
+        >i</button>
+      </h2>
       <div class="row">
         <button class="small stateBtn on" id="stateA">A · start</button>
         <button class="small stateBtn" id="stateB">B · end</button>
       </div>
-      <div class="hint" style="margin-top:0;margin-bottom:10px">Arrange pieces in A, then switch to B and rearrange them to set the end state. Play loops A → B → A forever. Or auto-fill B with a prompt:</div>
       <div class="row">
         <input type="text" id="fPrompt" placeholder='e.g. "transform into an arrow"'>
         <button id="fGo" class="primary small">Go</button>
       </div>
-      <div class="row"><label>Hold (s)</label><input type="range" id="fHold" min="0.2" max="4" step="0.1" value="1.2"><div class="val" id="fHoldV">1.2s</div></div>
-      <div class="row"><label>Travel (s)</label><input type="range" id="fTrav" min="0.2" max="4" step="0.1" value="1"><div class="val" id="fTravV">1s</div></div>
-      <div class="row"><label class="toggle"><input type="checkbox" id="fFit" checked> Resize pieces to fill the shape</label></div>
+      <div class="slider-row">
+        <div class="row-head"><label>Hold</label><span class="val" id="fHoldV">1.2s</span></div>
+        <input type="range" id="fHold" min="0.2" max="4" step="0.1" value="1.2">
+      </div>
+      <div class="slider-row">
+        <div class="row-head"><label>Travel</label><span class="val" id="fTravV">1s</span></div>
+        <input type="range" id="fTrav" min="0.2" max="4" step="0.1" value="1">
+      </div>
+      <div class="row"><label class="toggle"><input type="checkbox" id="fFit" checked> Fill shape</label></div>
       <div class="row" id="fStatus" style="display:none">
         <div class="fname" id="fName"></div><div class="spacer"></div>
         <button class="small" id="fShuffle" title="Re-assign pieces to different spots">↺ Remap</button>
         <button class="small" id="fClear">✕ Clear</button>
       </div>
-      <div class="hint">Prompts run fully offline — no AI, no tokens. Known shapes: arrow (add up/down/left), heart, star, circle, square, triangle, diamond, plus, x, moon, bolt. Anything else gets spelled out as letters. After a prompt fills B, you can fine-tune it in B mode.</div>
     </section>
 
     <section>
       <h2>Playback</h2>
-      <div class="row"><label>Speed (fps)</label><input type="range" id="fps" min="2" max="24" step="1" value="8"><div class="val" id="fpsV">8</div></div>
-      <div class="row"><label>Jitter frames</label><input type="range" id="frames" min="2" max="16" step="1" value="8"><div class="val" id="framesV">8</div></div>
-      <div class="row"><label>Random seed</label><div class="val" id="seedV" style="width:auto">1234</div><div class="spacer"></div><button class="small" id="rerollBtn">🎲 Reroll</button></div>
+      <div class="slider-row">
+        <div class="row-head"><label>Speed</label><span class="val" id="fpsV">8</span></div>
+        <input type="range" id="fps" min="2" max="24" step="1" value="8">
+      </div>
+      <div class="slider-row">
+        <div class="row-head"><label>Frames</label><span class="val" id="framesV">8</span></div>
+        <input type="range" id="frames" min="2" max="16" step="1" value="8">
+      </div>
+      <div class="row"><label>Seed</label><div class="val" id="seedV" style="width:auto">1234</div><div class="spacer"></div><button class="small" id="rerollBtn">🎲 Reroll</button></div>
     </section>
 
     <section>
-      <h2>Stop-motion jitter</h2>
-      <div class="row"><label>Position</label><input type="range" id="jPos" min="0" max="60" step="1" value="10"><div class="val" id="jPosV">10px</div></div>
-      <div class="row"><label>Rotation</label><input type="range" id="jRot" min="0" max="20" step="0.5" value="2.5"><div class="val" id="jRotV">2.5°</div></div>
-      <div class="row"><label>Scale</label><input type="range" id="jScl" min="0" max="20" step="0.5" value="2"><div class="val" id="jSclV">2%</div></div>
-      <div class="hint">Every piece gets its own random nudge per frame — like paper cutouts moved between photos.</div>
+      <h2>
+        Stop-motion jitter
+        <button
+          class="info"
+          type="button"
+          aria-label="About stop-motion jitter"
+          title="Every piece gets its own random nudge per frame — like paper cutouts moved between photos."
+          data-tip="Every piece gets its own random nudge per frame — like paper cutouts moved between photos."
+        >i</button>
+      </h2>
+      <div class="slider-row">
+        <div class="row-head"><label>Position</label><span class="val" id="jPosV">10px</span></div>
+        <input type="range" id="jPos" min="0" max="60" step="1" value="10">
+      </div>
+      <div class="slider-row">
+        <div class="row-head"><label>Rotation</label><span class="val" id="jRotV">2.5°</span></div>
+        <input type="range" id="jRot" min="0" max="20" step="0.5" value="2.5">
+      </div>
+      <div class="slider-row">
+        <div class="row-head"><label>Scale</label><span class="val" id="jSclV">2%</span></div>
+        <input type="range" id="jScl" min="0" max="20" step="0.5" value="2">
+      </div>
     </section>
 
     <section>
-      <h2 style="display:flex;align-items:center">Pieces <span id="pieceCount" style="color:var(--muted);font-weight:400;margin-left:4px"></span><span class="spacer"></span><button class="small" id="selAllBtn" style="text-transform:none;letter-spacing:0">Select all</button></h2>
+      <h2>
+        Pieces <span id="pieceCount" style="color:var(--muted);font-weight:400;margin-left:4px"></span>
+        <button
+          class="info"
+          type="button"
+          aria-label="About Pieces"
+          title="SVGs and images both work as freeform pieces. Click to select, drag to move. Shift-click for multi-select · Cmd/Ctrl+A selects all · Esc deselects · Arrow keys nudge · Delete removes. Controls apply to every selected piece."
+          data-tip="SVGs and images both work as freeform pieces. Click to select, drag to move. Shift-click for multi-select · Cmd/Ctrl+A selects all · Esc deselects · Arrow keys nudge · Delete removes. Controls apply to every selected piece."
+        >i</button>
+        <span class="spacer"></span>
+        <button class="small" id="selAllBtn" style="text-transform:none;letter-spacing:0">Select all</button>
+      </h2>
       <div id="pieceList"></div>
       <div id="pieceCtrl" style="display:none">
-        <div class="row"><label>Color</label><input type="color" id="pCol" value="#181512"><button class="small" id="pColAll" title="Apply this color to all pieces">All</button><div class="spacer"></div><button class="small" id="pColReset">Original</button></div>
-        <div class="row"><label>Scale</label><input type="range" id="pScl" min="5" max="400" step="1" value="100"><div class="val" id="pSclV">100%</div></div>
-        <div class="row"><label>Rotation</label><input type="range" id="pRot" min="-180" max="180" step="1" value="0"><div class="val" id="pRotV">0°</div></div>
-        <div class="row"><label>Jitter amount</label><input type="range" id="pJit" min="0" max="300" step="5" value="100"><div class="val" id="pJitV">100%</div></div>
+        <div class="row" id="pColorRow"><label>Color</label><input type="color" id="pCol" value="#181512"><button class="small" id="pColAll" title="Apply this color to all pieces">All</button><div class="spacer"></div><button class="small" id="pColReset">Original</button></div>
+        <div class="slider-row">
+          <div class="row-head"><label>Scale</label><span class="val" id="pSclV">100%</span></div>
+          <input type="range" id="pScl" min="5" max="400" step="1" value="100">
+        </div>
+        <div class="slider-row">
+          <div class="row-head"><label>Rotation</label><span class="val" id="pRotV">0°</span></div>
+          <input type="range" id="pRot" min="-180" max="180" step="1" value="0">
+        </div>
+        <div class="slider-row">
+          <div class="row-head"><label>Jitter</label><span class="val" id="pJitV">100%</span></div>
+          <input type="range" id="pJit" min="0" max="300" step="5" value="100">
+        </div>
       </div>
-      <div class="hint">Click a piece to select it, drag to set its start position. Shift-click for multi-select · Cmd/Ctrl+A selects all · Esc deselects · Arrow keys nudge · Delete removes. Controls apply to every selected piece.</div>
     </section>
 
     <section>
@@ -250,25 +347,42 @@
     </section>
 
     <section>
-      <h2>Canvas</h2>
+      <h2>
+        Canvas
+        <button
+          class="info"
+          type="button"
+          aria-label="About grid guides"
+          title="Guides divide the canvas into an 8×8 grid (135×135px cells at 1080). Editor-only — never in exports."
+          data-tip="Guides divide the canvas into an 8×8 grid (135×135px cells at 1080). Editor-only — never in exports."
+        >i</button>
+      </h2>
       <div class="row"><label>Width</label><input type="number" id="cw" value="1080" min="64" max="4096"></div>
       <div class="row"><label>Height</label><input type="number" id="ch" value="1080" min="64" max="4096"></div>
-      <div class="row"><label class="toggle"><input type="checkbox" id="guidesChk" checked> Show 8×8 grid guides</label></div>
-      <div class="hint">Guides divide the canvas into an 8×8 grid (135×135&nbsp;px cells at 1080). Editor-only — never in exports.</div>
+      <div class="row"><label class="toggle"><input type="checkbox" id="guidesChk" checked> Grid guides</label></div>
     </section>
 
     <section>
-      <h2>Project</h2>
+      <h2>
+        Project
+        <button
+          class="info"
+          type="button"
+          aria-label="About saving projects"
+          title="Saves everything — pieces, colors, formation, settings — as a .json you can reload later."
+          data-tip="Saves everything — pieces, colors, formation, settings — as a .json you can reload later."
+        >i</button>
+      </h2>
       <div class="btnrow">
         <button id="saveBtn">Save project</button>
         <button id="loadBtn">Load project</button>
       </div>
-      <div class="hint">Saves everything (pieces, colors, formation, settings) as a .json you can reload later.</div>
     </section>
   </aside>
 </main>
 
 <input type="file" id="fileIn" accept=".svg,image/svg+xml" multiple>
+<input type="file" id="imgFileIn" accept="image/*" multiple>
 <input type="file" id="bgIn" accept="image/*">
 <input type="file" id="projIn" accept=".json,application/json">
 
@@ -399,6 +513,59 @@ function addPiece(name, svgText, opts={}){
   if(p.color) p.colInner = recolor(p.inner, p.color);
   S.pieces.push(p);
   return p;
+}
+
+/* ============================ Raster images (freeform pieces) ============================
+   Images use the exact same piece shape as SVGs — {id, vb, inner, x, y, scale, rot, jit,
+   tx, ty, trot, tscale} — so every existing system (drag, select, resize, rotate, jitter,
+   formations, playback, and all three export paths) works on them unmodified. The only
+   difference is `inner` is a plain <image href="..."> tag instead of parsed SVG markup, and
+   `isImage`/`imgSrc` are set so save/load and the color picker know to treat it differently. */
+function readAsDataURL(file){
+  return new Promise((res,rej)=>{
+    const r = new FileReader();
+    r.onload = ()=>res(r.result);
+    r.onerror = ()=>rej(new Error("couldn't read "+file.name));
+    r.readAsDataURL(file);
+  });
+}
+function loadImageEl(dataUrl){
+  return new Promise((res,rej)=>{
+    const img = new Image();
+    img.onload = ()=>res(img);
+    img.onerror = ()=>rej(new Error("couldn't load image"));
+    img.src = dataUrl;
+  });
+}
+function addImagePiece(name, dataUrl, vw, vh, opts={}){
+  const fit = Math.min(1, (Math.min(S.w,S.h)*0.35)/Math.max(vw,vh));
+  const p = {
+    id: nextId++, name, svgText:null, vb:[0,0,vw,vh],
+    inner: `<image href="${dataUrl}" x="0" y="0" width="${vw}" height="${vh}" preserveAspectRatio="none"/>`,
+    isImage:true, imgSrc:dataUrl,
+    color: null, colInner: null,
+    x: opts.x ?? S.w/2 + (Math.random()*2-1)*S.w*0.15,
+    y: opts.y ?? S.h/2 + (Math.random()*2-1)*S.h*0.15,
+    scale: opts.scale ?? fit, rot: opts.rot ?? 0, jit: opts.jit ?? 1,
+    tx: opts.tx ?? null, ty: opts.ty ?? null, trot: opts.trot ?? 0, tscale: opts.tscale ?? 1,
+  };
+  S.pieces.push(p);
+  return p;
+}
+async function addImageFile(file){
+  const dataUrl = await readAsDataURL(file);
+  const img = await loadImageEl(dataUrl);
+  const vw = img.naturalWidth || img.width, vh = img.naturalHeight || img.height;
+  return addImagePiece(file.name.replace(/\.[a-z0-9]+$/i,""), dataUrl, vw, vh);
+}
+
+/** Shallow-clone a piece (SVG or image) at an offset position. Used by the
+    piece list's "Duplicate" button — works for both piece types since it
+    just copies the existing object instead of re-parsing source data. */
+function clonePiece(p, dx=40, dy=40){
+  const clone = { ...p, id: nextId++, x: p.x+dx, y: p.y+dy, tx:null, ty:null, trot:0, tscale:1 };
+  S.pieces.push(clone);
+  return clone;
 }
 
 /* ============================ Scene ============================ */
@@ -587,6 +754,9 @@ function syncSel(){
     $("pRot").value=p[k.rot]; $("pRotV").textContent=Math.round(p[k.rot])+"°";
     $("pJit").value=p.jit*100; $("pJitV").textContent=Math.round(p.jit*100)+"%";
     if(p.color) $("pCol").value=p.color;
+    // Recoloring a raster image has no visual effect, so hide the
+    // control rather than leave a swatch that does nothing.
+    $("pColorRow").style.display = p.isImage ? "none" : "";
   }
   updateSelBox(); renderList();
 }
@@ -627,7 +797,7 @@ function renderList(){
     const [up,down,dup,del] = d.querySelectorAll(".ops button");
     up.onclick   = e=>{e.stopPropagation(); movePiece(p.id,+1);};
     down.onclick = e=>{e.stopPropagation(); movePiece(p.id,-1);};
-    dup.onclick  = e=>{e.stopPropagation(); const c=addPiece(p.name,p.svgText,{x:p.x+40,y:p.y+40,scale:p.scale,rot:p.rot,jit:p.jit,color:p.color}); buildScene(); if(c)select(c.id);};
+    dup.onclick  = e=>{e.stopPropagation(); const c=clonePiece(p); buildScene(); select(c.id);};
     del.onclick  = e=>{e.stopPropagation(); removePiece(p.id);};
     box.appendChild(d);
   });
@@ -708,15 +878,32 @@ $("fileIn").addEventListener("change", async e=>{
   buildScene(); if(last) select(last.id);
   e.target.value="";
 });
+
+$("addImgBtn").onclick=()=>$("imgFileIn").click();
+$("imgFileIn").addEventListener("change", async e=>{
+  let last=null;
+  for(const f of e.target.files){
+    try{ last = await addImageFile(f); }
+    catch(err){ alert("Couldn't add image: "+f.name); }
+  }
+  buildScene(); if(last) select(last.id);
+  e.target.value="";
+});
+
 ["dragenter","dragover"].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();document.body.classList.add("dragging");}));
 ["dragleave","drop"].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();if(ev==="drop"||e.target===document.body)document.body.classList.remove("dragging");}));
 document.addEventListener("drop", async e=>{
   document.body.classList.remove("dragging");
   let last=null;
   for(const f of e.dataTransfer.files){
-    if(!/svg/i.test(f.type) && !/\.svg$/i.test(f.name)) continue;
-    const p = addPiece(f.name.replace(/\.svg$/i,""), await f.text());
-    if(p) last=p;
+    const isSvg = /svg/i.test(f.type) || /\.svg$/i.test(f.name);
+    const isImg = !isSvg && /^image\//i.test(f.type);
+    if(isSvg){
+      const p = addPiece(f.name.replace(/\.svg$/i,""), await f.text());
+      if(p) last=p;
+    } else if(isImg){
+      try{ last = await addImageFile(f); } catch(err){ /* skip files that fail to load */ }
+    }
   }
   if(last){ buildScene(); select(last.id); }
 });
@@ -1084,10 +1271,15 @@ $("mp4Btn").onclick = async ()=>{
 /* ============================ Save / load project ============================ */
 $("saveBtn").onclick=()=>{
   const data = {
-    v:2, w:S.w, h:S.h, bgColor:S.bgColor, bgImage:S.bgImage,
+    v:3, w:S.w, h:S.h, bgColor:S.bgColor, bgImage:S.bgImage,
     fps:S.fps, frames:S.frames, seed:S.seed, jPos:S.jPos, jRot:S.jRot, jScl:S.jScl,
     holdSec:S.holdSec, travSec:S.travSec, fit:S.fit, guides:S.guides, formation:S.formation,
-    pieces: S.pieces.map(p=>({name:p.name, svgText:p.svgText, color:p.color,
+    // Image pieces (isImage:true) carry their raw dataURL + pixel
+    // dimensions instead of svgText, since there's no source markup to
+    // re-parse on load — v3 adds these fields; v2 files (SVG-only)
+    // still load fine since isImage/imgSrc/vb are simply undefined.
+    pieces: S.pieces.map(p=>({name:p.name, svgText:p.svgText, isImage:!!p.isImage,
+      imgSrc:p.isImage?p.imgSrc:undefined, vb:p.isImage?p.vb:undefined, color:p.color,
       x:p.x, y:p.y, scale:p.scale, rot:p.rot, jit:p.jit,
       tx:p.tx, ty:p.ty, trot:p.trot, tscale:p.tscale}))
   };
@@ -1102,7 +1294,10 @@ $("projIn").addEventListener("change", async e=>{
       seed:d.seed,jPos:d.jPos,jRot:d.jRot,jScl:d.jScl,
       holdSec:d.holdSec??1.2,travSec:d.travSec??1,fit:d.fit??true,guides:d.guides??true,formation:d.formation??null,
       pieces:[],sel:new Set(),frame:0});
-    d.pieces.forEach(p=>addPiece(p.name,p.svgText,p));
+    d.pieces.forEach(p=>{
+      if(p.isImage) addImagePiece(p.name, p.imgSrc, p.vb[2], p.vb[3], p);
+      else addPiece(p.name,p.svgText,p);
+    });
     $("cw").value=S.w; $("ch").value=S.h; $("bgColor").value=S.bgColor;
     $("bgImgClear").style.display=S.bgImage?"":"none";
     [["fps",S.fps,""],["frames",S.frames,""],["jPos",S.jPos,"px"],["jRot",S.jRot,"°"],["jScl",S.jScl,"%"],
@@ -1117,6 +1312,31 @@ $("projIn").addEventListener("change", async e=>{
   }catch(err){ alert("Couldn't load project: "+err.message); }
   e.target.value="";
 });
+
+/* ============================ Info tooltips ============================ */
+// Each ".info" button carries its full explanation in data-tip (and in
+// its title attribute, so hovering shows the browser's native tooltip
+// too). Clicking toggles a small floating panel with the same text —
+// this replaces the old paragraph-length hints that used to sit under
+// every section.
+function closeAllTips(exceptBtn){
+  document.querySelectorAll(".info-tip").forEach(tip=>{
+    if(tip.parentElement !== exceptBtn) tip.remove();
+  });
+}
+document.querySelectorAll(".info").forEach(btn=>{
+  btn.addEventListener("click", e=>{
+    e.stopPropagation();
+    const existing = btn.querySelector(".info-tip");
+    closeAllTips(btn);
+    if(existing) return; // second click on the same button just closes it
+    const tip = document.createElement("div");
+    tip.className = "info-tip";
+    tip.textContent = btn.dataset.tip;
+    btn.appendChild(tip);
+  });
+});
+document.addEventListener("click", ()=>closeAllTips(null));
 
 /* ============================ Init ============================ */
 buildScene();

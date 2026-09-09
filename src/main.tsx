@@ -3,7 +3,6 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import Home from "./pages/Home";
-import Story from "./pages/Story";
 import Notify from "./pages/Notify";
 import Create from "./pages/Create";
 import Login from "./pages/Login";
@@ -40,7 +39,6 @@ function RoutedShell() {
     <PageTransition>
       <Routes location={location}>
         <Route path="/" element={<Home />} />
-        <Route path="/story" element={<Story />} />
         <Route path="/create" element={<Create />} />
         <Route path="/notify" element={<Notify />} />
         <Route path="/login" element={<Login />} />

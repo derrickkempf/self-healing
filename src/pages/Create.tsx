@@ -4,10 +4,11 @@ import SiteChrome from "../components/SiteChrome";
  * Create — hosts the Paper Motion Studio tool.
  *
  * Uses SiteChrome's `chromeless` mode: this renders the exact same
- * top-left nav (same links, same admin filtering, same hamburger
- * drawer overlay) as every other page, so navigation stays perfectly
- * consistent site-wide — but skips the grid, logo, footer, and
- * diagonal line so the tool gets the full viewport for its stage.
+ * top-left nav (About | Progress | Gallery | Create, same mobile
+ * wordmark, same admin filtering) as every other page, so navigation
+ * stays perfectly consistent site-wide — but skips the grid, logo,
+ * footer, and diagonal line so the tool gets the full viewport for
+ * its stage.
  */
 export default function Create() {
   return (

@@ -248,7 +248,7 @@ create policy "site_content: admin update" on public.site_content
   for update using (public.is_admin());
 
 -- Realtime — so a save from the admin card shows up on the public
--- Story / About / Notify pages immediately for anyone with them open.
+-- About / Notify pages immediately for anyone with them open.
 alter publication supabase_realtime add table public.site_content;
 
 -- posts
