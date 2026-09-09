@@ -113,7 +113,7 @@ export async function getContent(key: string): Promise<ContentRow | null> {
 }
 
 /** List all content rows whose key starts with the given prefix — used
- *  by the Story page to load every `story.*` row in one round-trip. */
+ *  to load a group of related content rows in one round-trip. */
 export async function listContent(prefix: string): Promise<ContentRow[]> {
   const { data, error } = await supabase
     .from("site_content")

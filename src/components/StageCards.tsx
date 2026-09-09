@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link } from "react-router-dom";
 import Reveal from "./Reveal";
 import type { GalleryImage, Message, Post, Profile } from "../types";
 import {
@@ -67,15 +66,6 @@ export function AboutContent() {
           className="cms-body text-white/70 text-[13px] leading-relaxed mb-8"
           dangerouslySetInnerHTML={{ __html: bodyHtml }}
         />
-      </Reveal>
-
-      <Reveal delay={0.22}>
-        <Link
-          to="/story"
-          className="inline-block border border-white/70 px-6 py-3 text-[11px] uppercase tracking-[0.22em] hover:bg-white hover:text-black transition"
-        >
-          Discover More →
-        </Link>
       </Reveal>
 
       <style>{`

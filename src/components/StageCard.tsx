@@ -10,8 +10,11 @@ import { ReactNode, useEffect, useRef, useState } from "react";
  *   • Free-form: on desktop, the parent passes { x, y, w, h } in cells
  *     and { onMove, onResize } handlers. The card sits absolutely inside
  *     a stage container. Users drag the header to move; drag the
- *     bottom-right handle to resize. Both actions snap to the 32-px
- *     grid on mouseup.
+ *     bottom-right handle to resize. Both actions are pixel-precise —
+ *     no snapping to the 32-px grid. Positions/sizes are still stored
+ *     in cell units (fractional now) since the surrounding CSS uses
+ *     `calc(var(--cell) * n)`, but the grid no longer constrains where
+ *     a card can land.
  *
  * Header layout:
  *   [ LABEL                                    × ]
@@ -89,8 +92,10 @@ export default function StageCard({
     function onMouseMove(e: MouseEvent) {
       const d = dragRef.current;
       if (!d) return;
-      const dx = Math.round((e.clientX - d.startX) / CELL);
-      const dy = Math.round((e.clientY - d.startY) / CELL);
+      // No Math.round here — panels move/resize at full pixel
+      // precision instead of snapping to the 32-px grid.
+      const dx = (e.clientX - d.startX) / CELL;
+      const dy = (e.clientY - d.startY) / CELL;
       if (d.kind === "move") {
         setGhost({
           x: Math.max(0, d.origA + dx),

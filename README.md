@@ -13,7 +13,6 @@ Live at **[self-healing.art](https://self-healing.art)**.
 The site is a small React SPA that acts as both a public storefront and a private studio journal:
 
 - **Public — landing.** A three-card stage (About, Progress, Gallery) rendered on a 32-px drafting grid. Cards can be dragged and resized like desktop windows.
-- **Public — Story.** Long-form narrative about how the project started and why.
 - **Public — Notify.** A one-field email capture for people who want a note when the next drop opens.
 - **Private — Dashboard.** Collectors and collaborators sign in via email OTP, publish updates, chat, and manage a shared gallery. Everything they publish appears on the public Progress feed in real time.
 
@@ -51,7 +50,6 @@ The site is a small React SPA that acts as both a public storefront and a privat
 src/
   pages/
     Home.tsx           Public landing (three-card stage)
-    Story.tsx          Long-form narrative
     Notify.tsx         Public email capture
     Login.tsx          Email-OTP sign-in for collaborators
     Dashboard.tsx      Signed-in stage (adds Compose + Messaging cards)
@@ -167,8 +165,6 @@ Any block of copy on the public site can be made editable through the in-app **C
 
 - `home.about` — Home page About-card body
 - `notify.intro` — Notify page description
-- `story.opening` — Story page opening paragraph
-- `story.section.how_it_started` … `story.section.what_comes_next` — the five Story chapters
 
 **Adding a new editable block is a two-line change:**
 

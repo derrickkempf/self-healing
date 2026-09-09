@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { useIsAdmin } from "../utils/useIsAdmin";
 
@@ -42,10 +41,16 @@ import { useIsAdmin } from "../utils/useIsAdmin";
  *   in normal document flow and scroll away with the rest of the page,
  *   and the grid/right-strip backgrounds (which use `top/bottom: 0`)
  *   stretch to match the page's actual full height rather than being
- *   clipped to one viewport. Only two overlays stay `fixed` on
- *   purpose: the mobile nav drawer (NavOverlay) and the page-transition
- *   overlay, both of which are meant to always cover the whole screen
+ *   clipped to one viewport. Only the page-transition overlay stays
+ *   `fixed`, since it's meant to always cover the whole screen
  *   regardless of scroll position.
+ *
+ * Nav:
+ *   The nav is short now (About | Progress | Gallery | Create), so it
+ *   renders persistently at every breakpoint — no hamburger, no mobile
+ *   drawer. On mobile/tablet a compact "Self-Healing" wordmark sits in
+ *   front of it (the big corner logo only shows at xl+), so the brand
+ *   stays visible without needing a menu tap to find it.
  */
 
 interface Props {
@@ -70,22 +75,6 @@ export default function SiteChrome({
   hideFooter = false,
   chromeless = false,
 }: Props) {
-  const [navOpen, setNavOpen] = useState(false);
-
-  // Lock body scroll while the mobile nav overlay is open; also handle Esc.
-  useEffect(() => {
-    if (!navOpen) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") setNavOpen(false);
-    }
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = "";
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [navOpen]);
-
   return (
     <div
       className="relative min-h-screen text-white overflow-x-hidden"
@@ -114,12 +103,16 @@ export default function SiteChrome({
       {/* Right chrome strip: overlays the grid on tablet+ from the right
           edge inward by one cell. Mobile has none. Includes a subtle 1px
           left border that draws the right edge of the grid area itself
-          (previously invisible). */}
+          (previously invisible). Starts at `top: var(--cell)` — i.e.
+          below the top strip, level with the logo — rather than
+          `top: 0`. It used to run the full viewport height, which put a
+          stray vertical border segment above the logo, through the nav
+          row where it served no purpose. */}
       {!chromeless && (
         <div
           aria-hidden
-          className="hidden md:block absolute top-0 bottom-0 right-0 z-0 pointer-events-none border-l border-white/10"
-          style={{ width: "var(--cell)", background: "#1a1a1a" }}
+          className="hidden md:block absolute bottom-0 right-0 z-0 pointer-events-none border-l border-white/10"
+          style={{ top: "var(--cell)", width: "var(--cell)", background: "#1a1a1a" }}
         />
       )}
       {/* Top chrome strip. Adds a 1px bottom border so the boundary
@@ -195,7 +188,7 @@ export default function SiteChrome({
           (including chromeless) so navigation is identical everywhere;
           logo + footer are skipped in chromeless mode.
           =══════════════════════════════════════════════════════════════ */}
-      <TopLeftNav variant={variant} onOpen={() => setNavOpen(true)} />
+      <TopLeftNav variant={variant} />
       {!chromeless && <TopRightLogo />}
       {!hideFooter && !chromeless && <BottomRightFooter />}
 
@@ -231,10 +224,6 @@ export default function SiteChrome({
             in chromeless mode along with the rest of the footer. */}
         {!hideFooter && !chromeless && <MobileFooter />}
       </div>
-
-      {navOpen && (
-        <NavOverlay variant={variant} onClose={() => setNavOpen(false)} />
-      )}
     </div>
   );
 }
@@ -275,10 +264,7 @@ interface NavVariantProps {
   variant: "public" | "private";
 }
 
-function TopLeftNav({
-  variant,
-  onOpen,
-}: NavVariantProps & { onOpen: () => void }) {
+function TopLeftNav({ variant }: NavVariantProps) {
   const rawItems = variant === "public" ? PUBLIC_NAV : PRIVATE_NAV;
   // Non-admins never see the "Content" nav item — CMS is admin-only.
   const { isAdmin } = useIsAdmin();
@@ -287,50 +273,37 @@ function TopLeftNav({
     : rawItems.filter((i) => i.label !== "Content");
 
   return (
-    <>
-      {/* Hamburger — visible below xl. Inside the top chrome strip. */}
-      <button
-        type="button"
-        onClick={onOpen}
-        aria-label="Open menu"
-        className="
-          xl:hidden absolute z-30 p-2 text-white/70 hover:text-white transition
-          top-1 left-1/2 -translate-x-1/2
-          md:top-1 md:left-2 md:translate-x-0
-        "
+    <nav
+      aria-label="Primary"
+      className="flex flex-wrap items-center gap-x-2 gap-y-1 md:gap-x-3 absolute top-0 left-3 z-30 py-2 md:py-0"
+      style={{ minHeight: "var(--cell)" }}
+    >
+      {/* Compact persistent wordmark — mobile/tablet only. The big
+          corner logo (TopRightLogo) only renders at xl+, so below that
+          breakpoint the brand needs a lightweight stand-in that's
+          always visible, replacing what used to be a hamburger button
+          that hid the nav behind a tap. */}
+      <Link
+        to="/"
+        aria-label="Self-Healing — home"
+        className="xl:hidden uppercase tracking-[0.22em] text-[10px] text-white/90 hover:text-white transition-colors shrink-0"
       >
-        <svg
-          width="24"
-          height="14"
-          viewBox="0 0 24 14"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          aria-hidden
-        >
-          <line x1="2" y1="4" x2="22" y2="4" />
-          <line x1="2" y1="10" x2="22" y2="10" />
-        </svg>
-      </button>
-
-      {/* Text nav — desktop only. Inside the top chrome strip at top-left. */}
-      <nav
-        aria-label="Primary"
-        className="hidden xl:flex items-center gap-3 absolute top-0 left-3 z-30"
-        style={{ height: "var(--cell)" }}
-      >
-        {items.map((item, i) => (
-          <span key={item.label} className="flex items-center gap-3">
-            {i > 0 && (
-              <span aria-hidden className="text-white/25 text-[10px]">
-                |
-              </span>
-            )}
-            <NavItem item={item} />
-          </span>
-        ))}
-      </nav>
-    </>
+        Self-Healing
+      </Link>
+      <span aria-hidden className="xl:hidden text-white/25 text-[10px]">
+        |
+      </span>
+      {items.map((item, i) => (
+        <span key={item.label} className="flex items-center gap-2 md:gap-3">
+          {i > 0 && (
+            <span aria-hidden className="text-white/25 text-[10px]">
+              |
+            </span>
+          )}
+          <NavItem item={item} />
+        </span>
+      ))}
+    </nav>
   );
 }
 
@@ -384,15 +357,10 @@ type NavLinkItem =
 // so clicking "About" from /settings navigates to /dashboard#about (or
 // /#about for logged-out users) instead of dead-ending on /settings.
 const PUBLIC_NAV: NavLinkItem[] = [
-  { kind: "route", label: "Home", to: "/" },
-  { kind: "route", label: "Story", to: "/story" },
+  { kind: "anchor", label: "About", href: "#about", base: "/" },
   { kind: "anchor", label: "Progress", href: "#progress", base: "/" },
   { kind: "anchor", label: "Gallery", href: "#gallery", base: "/" },
   { kind: "route", label: "Create", to: "/create" },
-  { kind: "route", label: "Notify", to: "/notify" },
-  // Login for returning collaborators. Sits at the far right of the
-  // desktop nav; also appears in the mobile drawer.
-  { kind: "route", label: "Login", to: "/login" },
 ];
 
 const PRIVATE_NAV: NavLinkItem[] = [
@@ -404,90 +372,6 @@ const PRIVATE_NAV: NavLinkItem[] = [
   { kind: "anchor", label: "Content", href: "#content", base: "/dashboard" },
   { kind: "route", label: "Settings", to: "/settings" },
 ];
-
-// ============================================================================
-// Mobile / tablet nav overlay
-// ============================================================================
-
-function NavOverlay({
-  variant,
-  onClose,
-}: NavVariantProps & { onClose: () => void }) {
-  const rawItems = variant === "public" ? PUBLIC_NAV : PRIVATE_NAV;
-  // Same admin filter as TopLeftNav — non-admins don't see Content in
-  // the mobile drawer either.
-  const { isAdmin } = useIsAdmin();
-  const items = isAdmin
-    ? rawItems
-    : rawItems.filter((i) => i.label !== "Content");
-  const linkClass =
-    "font-serif text-5xl text-white/90 hover:text-white transition-colors uppercase leading-none";
-
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Menu"
-      className="fixed inset-0 z-[60] bg-black flex flex-col"
-    >
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Close menu"
-        className="absolute top-2 left-1/2 -translate-x-1/2 p-2 text-white/70 hover:text-white transition md:left-2 md:translate-x-0"
-      >
-        <svg
-          width="24"
-          height="14"
-          viewBox="0 0 24 14"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          aria-hidden
-        >
-          <line x1="2" y1="4" x2="22" y2="4" />
-          <line x1="2" y1="10" x2="22" y2="10" />
-        </svg>
-      </button>
-
-      <div className="flex-1 flex flex-col items-center justify-center gap-4 px-6">
-        {items.map((item) => {
-          if (item.kind === "route") {
-            return (
-              <Link
-                key={item.label}
-                to={item.to}
-                onClick={onClose}
-                className={linkClass}
-              >
-                {item.label}
-              </Link>
-            );
-          }
-          return (
-            <Link
-              key={item.label}
-              to={`${item.base}${item.href}`}
-              onClick={() => {
-                onClose();
-                const id = item.href.replace("#", "");
-                queueMicrotask(() =>
-                  window.dispatchEvent(
-                    new CustomEvent("sh:open-card", { detail: id }),
-                  ),
-                );
-              }}
-              className={linkClass}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-
-      </div>
-    </div>
-  );
-}
 
 // ============================================================================
 // Top-right logo — 4 cells × 2 cells (128 × 64). Straddles the top chrome
