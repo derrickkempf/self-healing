@@ -48,9 +48,10 @@ import { useIsAdmin } from "../utils/useIsAdmin";
  * Nav:
  *   The nav is short now (About | Progress | Gallery | Create), so it
  *   renders persistently at every breakpoint — no hamburger, no mobile
- *   drawer. On mobile/tablet a compact "Self-Healing" wordmark sits in
- *   front of it (the big corner logo only shows at xl+), so the brand
- *   stays visible without needing a menu tap to find it.
+ *   drawer. On mobile/tablet the script wordmark (self-healing-script.svg)
+ *   sits at the right edge of the same top row (the big corner logo only
+ *   shows at xl+), so the brand stays visible without needing a menu tap
+ *   to find it.
  */
 
 interface Props {
@@ -189,6 +190,7 @@ export default function SiteChrome({
           logo + footer are skipped in chromeless mode.
           =══════════════════════════════════════════════════════════════ */}
       <TopLeftNav variant={variant} />
+      <MobileScriptLogo />
       {!chromeless && <TopRightLogo />}
       {!hideFooter && !chromeless && <BottomRightFooter />}
 
@@ -278,21 +280,6 @@ function TopLeftNav({ variant }: NavVariantProps) {
       className="flex flex-wrap items-center gap-x-2 gap-y-1 md:gap-x-3 absolute top-0 left-3 z-30 py-2 md:py-0"
       style={{ minHeight: "var(--cell)" }}
     >
-      {/* Compact persistent wordmark — mobile/tablet only. The big
-          corner logo (TopRightLogo) only renders at xl+, so below that
-          breakpoint the brand needs a lightweight stand-in that's
-          always visible, replacing what used to be a hamburger button
-          that hid the nav behind a tap. */}
-      <Link
-        to="/"
-        aria-label="Self-Healing — home"
-        className="xl:hidden uppercase tracking-[0.22em] text-[10px] text-white/90 hover:text-white transition-colors shrink-0"
-      >
-        Self-Healing
-      </Link>
-      <span aria-hidden className="xl:hidden text-white/25 text-[10px]">
-        |
-      </span>
       {items.map((item, i) => (
         <span key={item.label} className="flex items-center gap-2 md:gap-3">
           {i > 0 && (
@@ -372,6 +359,28 @@ const PRIVATE_NAV: NavLinkItem[] = [
   { kind: "anchor", label: "Content", href: "#content", base: "/dashboard" },
   { kind: "route", label: "Settings", to: "/settings" },
 ];
+
+/** Script wordmark shown at the right edge of the top nav row on
+ *  mobile/tablet — the big corner logo (TopRightLogo) only renders at
+ *  xl+, so below that breakpoint this is the brand's only mark. Lives
+ *  in the top chrome strip itself, not inside the nav's flex flow, so
+ *  it stays pinned to the right regardless of how many nav items wrap. */
+function MobileScriptLogo() {
+  return (
+    <Link
+      to="/"
+      aria-label="Self-Healing — home"
+      className="xl:hidden absolute z-30 top-0 right-3 flex items-center opacity-90 hover:opacity-100 transition-opacity"
+      style={{ height: "var(--cell)" }}
+    >
+      <img
+        src="/self-healing-script.svg"
+        alt="Self-Healing"
+        className="h-[15px] w-auto"
+      />
+    </Link>
+  );
+}
 
 // ============================================================================
 // Top-right logo — 4 cells × 2 cells (128 × 64). Straddles the top chrome

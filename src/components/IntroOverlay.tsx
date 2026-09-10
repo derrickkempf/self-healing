@@ -3,23 +3,36 @@ import gsap from "gsap";
 import { unblockReveal } from "../utils/reveal-gate";
 
 /**
- * One-shot intro overlay (Semplice-style brief loader).
+ * One-shot intro overlay — a "mat wipe" reveal.
  *
- * Timeline (≈ 2.3s total):
- *   0.00 - black overlay covers screen
- *   0.05 - thin top hairline scales in (10ms ease)
- *   0.10 - logo reveals via a left-to-right clip-path wipe
- *   0.85 - tagline characters stagger in
- *   1.90 - tagline + logo fade slightly, then…
- *   2.10 - whole overlay slides up (yPercent: -100) revealing the page
+ * Timeline (≈ 3.6s total):
+ *   0.10 - the green mat (mat-green-side.svg) fades in, parked over the
+ *          right half of the screen
+ *   0.35 - "Between every cut," fades/settles in on the left
+ *   1.10 - hold beat
+ *   1.10 - the mat slides left, sweeping across the middle of the
+ *          screen; "Between every cut," fades out as the mat passes
+ *          over it, "a space for healing." fades in on the right as the
+ *          mat clears that side — the second phrase reads as having
+ *          been sitting there under the mat the whole time
+ *   2.55 - hold on the combined "mat (left) + second phrase (right)"
+ *          frame for ~1.4s
+ *   3.35 - exit: the whole overlay (mat + phrase) slides up and off
+ *          screen while the live site simultaneously slides up from
+ *          just below its resting position into place — same duration
+ *          and ease on both, so it reads as one continuous swap rather
+ *          than a cover being lifted off a static page.
  *
- * The overlay sets a sessionStorage flag so it only plays once per browser
- * session. Pass `force` to replay (used by a hidden dev keyboard shortcut).
- *
- * Click anywhere to skip — the timeline jumps to its end.
+ * The overlay sets a sessionStorage flag so it only plays once per
+ * browser session. Pass `force` to replay (e.g. a hidden dev shortcut).
+ * Click anywhere to skip — the timeline jumps to its exit.
  */
 
 const STORAGE_KEY = "sh.intro.seen";
+// The site-shell wrapper (see main.tsx) that the exit tween slides up
+// into place, synchronized with the overlay's own slide-up.
+const SITE_SHELL_SELECTOR = "#site-shell";
+const SITE_SHELL_OFFSET = 48; // px the site starts below its resting spot
 
 interface Props {
   /** Force the intro to play even if it has been shown this session. */
@@ -36,41 +49,37 @@ export default function IntroOverlay({ force = false, onDone }: Props) {
   });
 
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const logoRef = useRef<HTMLDivElement | null>(null);
-  const taglineRef = useRef<HTMLDivElement | null>(null);
-  const topLineRef = useRef<HTMLDivElement | null>(null);
-  const counterRef = useRef<HTMLSpanElement | null>(null);
+  const matRef = useRef<HTMLImageElement | null>(null);
+  const phrase1Ref = useRef<HTMLDivElement | null>(null);
+  const phrase2Ref = useRef<HTMLDivElement | null>(null);
   const tlRef = useRef<gsap.core.Timeline | null>(null);
 
   useEffect(() => {
     if (!show) return;
     if (!rootRef.current) return;
 
-    // NOTE: deliberately NOT wrapping this in gsap.context(). The previous
-    // version did, and ctx.revert() on unmount was killing the hero's
-    // <Reveal> fade-in tween via gsap's cross-context tracking (the
-    // tween was scheduled from inside one of this timeline's .call
-    // callbacks, which gsap apparently associates with the surrounding
-    // context). Result: hero faded in, then snapped back to opacity 0
-    // when the overlay unmounted. Plain gsap calls + manual tl.kill()
-    // on unmount sidesteps the issue entirely.
-    const introChars = rootRef.current.querySelectorAll(".intro-char");
+    const siteShell = document.querySelector<HTMLElement>(SITE_SHELL_SELECTOR);
 
-    // Initial states
+    // Initial states. The mat rests at the container's center via
+    // xPercent/yPercent (-50/-50); the x offsets below then push it out
+    // to the right slot to start, and back past center to the left slot
+    // for the reveal sweep.
     gsap.set(rootRef.current, { autoAlpha: 1, yPercent: 0 });
-    gsap.set(topLineRef.current, { scaleX: 0, transformOrigin: "left center" });
-    gsap.set(logoRef.current, {
-      clipPath: "inset(0 100% 0 0)",
-      opacity: 1,
+    gsap.set(matRef.current, {
+      xPercent: -50,
+      yPercent: -50,
+      x: "25vw",
+      opacity: 0,
     });
-    gsap.set(introChars, { yPercent: 110, opacity: 0 });
+    gsap.set(phrase1Ref.current, { opacity: 0, y: 14 });
+    gsap.set(phrase2Ref.current, { opacity: 0, y: 14 });
+    if (siteShell) gsap.set(siteShell, { y: SITE_SHELL_OFFSET });
 
     const tl = gsap.timeline({
       defaults: { ease: "power3.out" },
       onComplete: () => {
-        // Idempotent — also called from the exit tween's onStart and from
-        // handleSkip(). Belt + suspenders in case anything jumps past the
-        // call without firing it.
+        // Idempotent — also reachable via handleSkip(). Belt + suspenders
+        // in case anything jumps past the .call without firing it.
         unblockReveal("intro");
         try {
           sessionStorage.setItem(STORAGE_KEY, "1");
@@ -82,58 +91,50 @@ export default function IntroOverlay({ force = false, onDone }: Props) {
       },
     });
 
-    tl.to(topLineRef.current, { scaleX: 1, duration: 0.5, ease: "power2.out" }, 0.05)
+    tl
+      // Mat fades in first, parked over the right side.
+      .to(matRef.current, { opacity: 1, duration: 0.7, ease: "power2.out" }, 0.1)
+      // "Between every cut," settles in on the left.
       .to(
-        logoRef.current,
-        {
-          clipPath: "inset(0 0% 0 0)",
-          duration: 0.95,
-          ease: "expo.out",
-        },
-        0.1,
+        phrase1Ref.current,
+        { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" },
+        0.35,
       )
-      // Animate a "0 → 100" counter alongside the wipe.
+      // Hold beat before the sweep.
+      .to({}, { duration: 0.5 })
+      // The mat sweeps left across the middle of the screen.
+      .to(matRef.current, { x: "-25vw", duration: 1.15, ease: "power3.inOut" })
+      // The first phrase disappears as the mat passes over it.
       .to(
-        { v: 0 },
-        {
-          v: 100,
-          duration: 1.4,
-          ease: "power1.inOut",
-          onUpdate() {
-            const v = Math.round(this.targets()[0].v);
-            if (counterRef.current) {
-              counterRef.current.textContent = String(v).padStart(3, "0");
-            }
-          },
-        },
-        0.1,
+        phrase1Ref.current,
+        { opacity: 0, duration: 0.35, ease: "power2.in" },
+        "<",
       )
+      // The second phrase reveals on the right as the mat clears it.
       .to(
-        introChars,
-        {
-          yPercent: 0,
-          opacity: 1,
-          duration: 0.6,
-          stagger: 0.025,
-          ease: "power3.out",
-        },
-        0.85,
+        phrase2Ref.current,
+        { opacity: 1, y: 0, duration: 0.55, ease: "power2.out" },
+        "-=0.5",
       )
-      .to(
-        [logoRef.current, taglineRef.current, topLineRef.current],
-        { opacity: 0, duration: 0.4, ease: "power2.in" },
-        "+=0.25",
-      )
-      // Unblock the reveal-gate the moment the overlay starts sliding off,
-      // so above-the-fold <Reveal>s start fading up *while* the overlay
-      // rises. By the time the overlay is gone, content is mid-animation —
-      // no awkward "page appears empty, then animates" two-step.
-      .call(() => unblockReveal("intro"), [], "-=0.15")
+      // Hold on the combined frame.
+      .to({}, { duration: 1.4 })
+      // Exit: overlay slides up and off screen while the site
+      // simultaneously slides up from just below its resting spot —
+      // same duration + ease on both so they read as one swipe.
+      .addLabel("exit")
+      .call(() => unblockReveal("intro"), [], "exit")
       .to(
         rootRef.current,
         { yPercent: -100, duration: 0.9, ease: "expo.inOut" },
-        "<",
+        "exit",
       );
+    if (siteShell) {
+      tl.to(
+        siteShell,
+        { y: 0, duration: 0.9, ease: "expo.inOut", clearProps: "transform" },
+        "exit",
+      );
+    }
 
     tlRef.current = tl;
 
@@ -141,71 +142,60 @@ export default function IntroOverlay({ force = false, onDone }: Props) {
       // Always release the reveal-gate on unmount — belt + suspenders in
       // case the timeline got killed before its own unblock call fired.
       unblockReveal("intro");
-      // Kill the timeline (stops the tick + frees handlers). Deliberately
-      // no ctx.revert() — see note at the top of this effect.
       tl.kill();
     };
   }, [show, onDone]);
 
   function handleSkip() {
     // Don't trust GSAP to fire the embedded .call when we seek past it —
-    // unblock here too. unblockReveal is idempotent.
+    // unblock here too. unblockReveal is idempotent. Land just shy of the
+    // end and let it play out naturally so onComplete still fires.
     unblockReveal("intro");
-    tlRef.current?.progress(0.95).play();
+    tlRef.current?.progress(0.97).play();
   }
 
   if (!show) return null;
-
-  const tagline = "Between every cut a space for healing";
 
   return (
     <div
       ref={rootRef}
       onClick={handleSkip}
       aria-hidden
-      className="fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center cursor-pointer select-none"
-      style={{ willChange: "transform, opacity" }}
+      className="fixed inset-0 z-[100] bg-black flex items-center justify-center overflow-hidden cursor-pointer select-none"
+      style={{ willChange: "transform" }}
     >
-      {/* Top hairline — animates in first, lends a sense of "system booting" */}
-      <div
-        ref={topLineRef}
-        className="absolute top-0 left-0 right-0 h-px bg-white/30"
-      />
-
-      {/* Logo: clipped reveal */}
-      <div
-        ref={logoRef}
-        className="w-[min(80vw,540px)] px-4"
-        style={{ willChange: "clip-path" }}
-      >
-        <img src="/logo.svg" alt="Self-Healing" className="w-full h-auto" />
+      <div className="relative w-full max-w-[1200px] px-6 md:px-16 flex items-center justify-between">
+        <div
+          ref={phrase1Ref}
+          className="serif text-white/95 leading-none"
+          style={{ fontSize: "clamp(20px, 5.4vw, 48px)" }}
+        >
+          Between every cut,
+        </div>
+        <div
+          ref={phrase2Ref}
+          className="serif text-white/95 leading-none text-right"
+          style={{ fontSize: "clamp(20px, 5.4vw, 48px)" }}
+        >
+          a space for healing.
+        </div>
+        <img
+          ref={matRef}
+          src="/mat-green-side.svg"
+          alt=""
+          className="absolute pointer-events-none"
+          style={{
+            top: "50%",
+            left: "50%",
+            width: "clamp(180px, 32vw, 420px)",
+            willChange: "transform, opacity",
+          }}
+        />
       </div>
 
-      {/* Tagline with char-stagger */}
-      <div
-        ref={taglineRef}
-        className="mt-6 text-[10px] md:text-[11px] uppercase tracking-[0.3em] text-white/70 flex overflow-hidden"
-        aria-label={tagline}
-      >
-        {tagline.split("").map((ch, i) => (
-          <span
-            key={i}
-            className="intro-char inline-block"
-            style={{ whiteSpace: "pre" }}
-          >
-            {ch}
-          </span>
-        ))}
-      </div>
-
-      {/* Bottom row: counter + skip hint */}
-      <div className="absolute bottom-6 left-0 right-0 px-6 md:px-10 flex items-center justify-between text-[10px] uppercase tracking-[0.25em] text-white/40">
-        <span>
-          <span ref={counterRef}>000</span>
-          <span> · loading</span>
-        </span>
-        <span className="hidden md:inline">click to skip</span>
-      </div>
+      <span className="absolute bottom-6 right-6 md:right-10 text-[10px] uppercase tracking-[0.25em] text-white/40 hidden md:inline">
+        click to skip
+      </span>
     </div>
   );
 }
