@@ -224,12 +224,31 @@ create table if not exists public.notification_prefs (
 -- ============================================================================
 -- Realtime — broadcast inserts/updates over the websocket
 -- ============================================================================
+-- `alter publication ... add table` has no IF NOT EXISTS clause, and
+-- errors (42710) if the table is already a publication member — which
+-- it will be on every re-run of this file. Loop + check
+-- pg_publication_tables first so this whole block is safe to re-paste
+-- any time, same as the `create table if not exists` statements above.
 
-alter publication supabase_realtime add table public.posts;
-alter publication supabase_realtime add table public.messages;
-alter publication supabase_realtime add table public.gallery_images;
-alter publication supabase_realtime add table public.profiles;
-alter publication supabase_realtime add table public.page_images;
+do $$
+declare
+  t text;
+begin
+  foreach t in array array[
+    'posts', 'messages', 'gallery_images', 'profiles', 'page_images',
+    'site_content'
+  ]
+  loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime'
+        and schemaname = 'public'
+        and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
 
 -- ============================================================================
 -- Row Level Security
@@ -273,9 +292,10 @@ create policy "site_content: admin insert" on public.site_content
 create policy "site_content: admin update" on public.site_content
   for update using (public.is_admin());
 
--- Realtime — so a save from the admin card shows up on the public
--- About / Notify pages immediately for anyone with them open.
-alter publication supabase_realtime add table public.site_content;
+-- Realtime for site_content (so a save from the admin card shows up on
+-- the public About / Notify pages immediately for anyone with them
+-- open) is handled by the idempotent do-block above, alongside the
+-- other tables.
 
 -- posts
 drop policy if exists "posts: public read"     on public.posts;
