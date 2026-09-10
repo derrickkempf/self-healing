@@ -29,9 +29,12 @@ import { unblockReveal } from "../utils/reveal-gate";
  * Click anywhere to skip — the timeline jumps to its exit.
  *
  * The mat's tilt/size numbers below are a first-pass approximation of
- * the reference mockup (perspective + rotateX + rotateZ applied to a
- * flat SVG, since the source art itself is drawn front-on with no
- * built-in tilt) — nudge MAT_* if the angle or scale needs adjusting.
+ * the reference mockup. An earlier version used a full 3D
+ * perspective + rotateX + rotateZ combo, but at this element's size
+ * that produced a wildly exaggerated diagonal stripe instead of a
+ * recognizable tilted mat — so this is deliberately a plain 2D
+ * `rotate()` on a moderately-sized box instead. Nudge MAT_* if the
+ * angle or scale still needs adjusting.
  */
 
 const STORAGE_KEY = "sh.intro.seen";
@@ -40,17 +43,13 @@ const STORAGE_KEY = "sh.intro.seen";
 const SITE_SHELL_SELECTOR = "#site-shell";
 const SITE_SHELL_OFFSET = 48; // px the site starts below its resting spot
 
-// Mat sizing / perspective tilt. Height-driven (not width-driven) so it
-// reads as "fills the viewport top-to-bottom, bleeds off one side".
-// The rotateX foreshortens the rendered box vertically, so the raw
-// pre-transform height is set well above 100vh to compensate — tune
-// MAT_HEIGHT up/down if the tilted mat looks too short/tall on screen.
-const MAT_HEIGHT = "168vh";
-const MAT_PERSPECTIVE = 1400;
-const MAT_ROTATE_X = 55; // tips the mat back into a "lying flat" view
-const MAT_ROTATE_Z = -25; // spins it in-plane for the diagonal tilt
-const MAT_REST_RIGHT = "-14%"; // rest position: bleeds off the right edge
-const MAT_SLIDE_X = "-122vw"; // sweep distance: ends bleeding off the left
+// Mat sizing / tilt. Height-driven (not width-driven) so it reads as
+// "fills the viewport top-to-bottom, bleeds off one side" — width
+// follows automatically from the SVG's own ~1.5:1 aspect ratio.
+const MAT_HEIGHT = "76vh";
+const MAT_ROTATE = -14; // simple 2D spin — no 3D perspective/rotateX
+const MAT_REST_RIGHT = "-6%"; // rest position: bleeds off the right edge
+const MAT_SLIDE_X = "-92vw"; // sweep distance: ends bleeding off the left
 
 interface Props {
   /** Force the intro to play even if it has been shown this session. */
@@ -80,13 +79,11 @@ export default function IntroOverlay({ force = false, onDone }: Props) {
 
     // Initial states. The mat's rest position (before any slide) is set
     // via CSS (`right: MAT_REST_RIGHT`, see JSX) so it already bleeds
-    // off the right edge — only the perspective tilt, vertical
-    // centering, and fade need to be set here.
+    // off the right edge — only the tilt, vertical centering, and fade
+    // need to be set here.
     gsap.set(rootRef.current, { autoAlpha: 1, yPercent: 0 });
     gsap.set(matRef.current, {
-      transformPerspective: MAT_PERSPECTIVE,
-      rotationX: MAT_ROTATE_X,
-      rotationZ: MAT_ROTATE_Z,
+      rotation: MAT_ROTATE,
       yPercent: -50,
       opacity: 0,
     });
