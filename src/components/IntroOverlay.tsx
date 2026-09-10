@@ -5,36 +5,41 @@ import { unblockReveal } from "../utils/reveal-gate";
 /**
  * One-shot intro overlay — a "mat wipe" reveal.
  *
- * Timeline (≈ 3.6s total):
- *   0.10 - the green mat (mat-green-side.svg) fades in at full height,
- *          tilted in perspective, parked bleeding off the right edge
- *   0.35 - "Between every cut," fades/settles in on the left
- *   1.10 - hold beat
- *   1.10 - the mat slides left, sweeping across the middle of the
- *          screen; "Between every cut," fades out as the mat passes
- *          over it, "a space for healing." fades in on the right as the
- *          mat clears that side — the second phrase reads as having
- *          been sitting there under the mat the whole time; the mat
- *          ends bleeding off the LEFT edge instead
- *   2.55 - hold on the combined "mat (left) + second phrase (right)"
- *          frame for ~1.4s
- *   3.35 - exit: the whole overlay (mat + phrase) slides up and off
- *          screen while the live site simultaneously slides up from
- *          just below its resting position into place — same duration
- *          and ease on both, so it reads as one continuous swap rather
- *          than a cover being lifted off a static page.
+ * Timeline (≈ 4.7s total):
+ *   0.15 - the green mat (mat-green-side.svg) fades in, tilted in
+ *          perspective, parked exactly half on / half off screen
+ *   0.45 - "Between every cut," fades/settles in
+ *   1.15 - hold beat
+ *   1.15 - the mat sweeps across the screen; the first phrase fades
+ *          out as the mat passes over it, the second phrase fades in
+ *          as the mat clears that side — it reads as having been
+ *          sitting there under the mat the whole time. The mat ends
+ *          half on / half off the OPPOSITE edge from where it started.
+ *   3.25 - hold on the combined frame for ~1.8s
+ *   5.05 - exit: the whole overlay slides away while the live site
+ *          simultaneously slides into place — same duration + ease on
+ *          both, so it reads as one continuous swap.
+ *
+ * Desktop sweeps horizontally (mat starts bled off the right edge,
+ * ends bled off the left; phrases sit left/right of each other).
+ * Mobile sweeps vertically instead — narrow screens don't have the
+ * width to spare for a side-by-side layout, so the mat is sized by
+ * width, phrases stack top/bottom, and the mat covers the bottom of
+ * the screen first before sweeping up to cover the top.
+ *
+ * Both variants use the same trick to guarantee "exactly half on,
+ * half off screen" regardless of viewport size: the mat is CSS-anchored
+ * flush to one edge (e.g. `right: 0`), then GSAP's xPercent/yPercent
+ * (a transform-based offset relative to the ELEMENT's own size, not the
+ * viewport) shifts it by exactly 50% of its own width/height past that
+ * edge. The sweep itself is then a single `x`/`y` tween of exactly
+ * "100vw"/"100vh" — since the half-on/half-off offset is baked into
+ * the constant xPercent/yPercent rather than the animated property, the
+ * mat lands exactly mirrored on the opposite edge with no guesswork.
  *
  * The overlay sets a sessionStorage flag so it only plays once per
  * browser session. Pass `force` to replay (e.g. a hidden dev shortcut).
  * Click anywhere to skip — the timeline jumps to its exit.
- *
- * The mat's tilt/size numbers below are a first-pass approximation of
- * the reference mockup. An earlier version used a full 3D
- * perspective + rotateX + rotateZ combo, but at this element's size
- * that produced a wildly exaggerated diagonal stripe instead of a
- * recognizable tilted mat — so this is deliberately a plain 2D
- * `rotate()` on a moderately-sized box instead. Nudge MAT_* if the
- * angle or scale still needs adjusting.
  */
 
 const STORAGE_KEY = "sh.intro.seen";
@@ -42,14 +47,21 @@ const STORAGE_KEY = "sh.intro.seen";
 // into place, synchronized with the overlay's own slide-up.
 const SITE_SHELL_SELECTOR = "#site-shell";
 const SITE_SHELL_OFFSET = 48; // px the site starts below its resting spot
+// Matches the site's own `md:` breakpoint (768px) used everywhere else
+// in SiteChrome, so the intro flips layout at the same point the rest
+// of the chrome does.
+const MOBILE_QUERY = "(max-width: 767px)";
 
-// Mat sizing / tilt. Height-driven (not width-driven) so it reads as
-// "fills the viewport top-to-bottom, bleeds off one side" — width
-// follows automatically from the SVG's own ~1.5:1 aspect ratio.
-const MAT_HEIGHT = "76vh";
-const MAT_ROTATE = -14; // simple 2D spin — no 3D perspective/rotateX
-const MAT_REST_RIGHT = "-6%"; // rest position: bleeds off the right edge
-const MAT_SLIDE_X = "-92vw"; // sweep distance: ends bleeding off the left
+// Perspective tilt — same on both breakpoints.
+const MAT_ROTATE_X = 40;
+const MAT_ROTATE_Y = -30;
+const MAT_ROTATE_Z = -12;
+const MAT_PERSPECTIVE = 2200;
+
+// Desktop: sized by height, sweeps left/right.
+const MAT_SLIDE_X = "-100vw";
+// Mobile: sized by width, sweeps up/down.
+const MAT_SLIDE_Y = "-100vh";
 
 interface Props {
   /** Force the intro to play even if it has been shown this session. */
@@ -76,15 +88,22 @@ export default function IntroOverlay({ force = false, onDone }: Props) {
     if (!rootRef.current) return;
 
     const siteShell = document.querySelector<HTMLElement>(SITE_SHELL_SELECTOR);
+    const isMobile =
+      typeof window !== "undefined" && window.matchMedia(MOBILE_QUERY).matches;
 
-    // Initial states. The mat's rest position (before any slide) is set
-    // via CSS (`right: MAT_REST_RIGHT`, see JSX) so it already bleeds
-    // off the right edge — only the tilt, vertical centering, and fade
-    // need to be set here.
     gsap.set(rootRef.current, { autoAlpha: 1, yPercent: 0 });
+
+    // The mat's rest position is set entirely here (not just a fade) —
+    // xPercent/yPercent give the "half on, half off" offset; the CSS
+    // anchor (bottom+left on mobile, top+right on desktop — see JSX)
+    // provides the edge each half-offset is measured from.
     gsap.set(matRef.current, {
-      rotation: MAT_ROTATE,
-      yPercent: -50,
+      rotationX: MAT_ROTATE_X,
+      rotationY: MAT_ROTATE_Y,
+      rotationZ: MAT_ROTATE_Z,
+      transformPerspective: MAT_PERSPECTIVE,
+      xPercent: isMobile ? -50 : 50,
+      yPercent: isMobile ? 50 : -50,
       opacity: 0,
     });
     gsap.set(phrase1Ref.current, { opacity: 0, y: 14 });
@@ -108,33 +127,38 @@ export default function IntroOverlay({ force = false, onDone }: Props) {
     });
 
     tl
-      // Mat fades in first, parked bleeding off the right edge.
-      .to(matRef.current, { opacity: 1, duration: 0.7, ease: "power2.out" }, 0.1)
-      // "Between every cut," settles in on the left.
+      // Mat fades in first, parked half on / half off screen.
+      .to(matRef.current, { opacity: 1, duration: 0.9, ease: "power2.out" }, 0.15)
+      // First phrase settles in.
       .to(
         phrase1Ref.current,
-        { opacity: 1, y: 0, duration: 0.7, ease: "power3.out" },
-        0.35,
+        { opacity: 1, y: 0, duration: 0.9, ease: "power3.out" },
+        0.45,
       )
       // Hold beat before the sweep.
-      .to({}, { duration: 0.5 })
-      // The mat sweeps left across the middle of the screen, ending
-      // bled off the left edge instead.
-      .to(matRef.current, { x: MAT_SLIDE_X, duration: 1.15, ease: "power3.inOut" })
+      .to({}, { duration: 0.7 })
+      // The mat sweeps across, ending half on / half off the opposite
+      // edge — horizontal on desktop, vertical on mobile.
+      .to(
+        matRef.current,
+        isMobile
+          ? { y: MAT_SLIDE_Y, duration: 1.5, ease: "power3.inOut" }
+          : { x: MAT_SLIDE_X, duration: 1.5, ease: "power3.inOut" },
+      )
       // The first phrase disappears as the mat passes over it.
       .to(
         phrase1Ref.current,
-        { opacity: 0, duration: 0.35, ease: "power2.in" },
+        { opacity: 0, duration: 0.45, ease: "power2.in" },
         "<",
       )
-      // The second phrase reveals on the right as the mat clears it.
+      // The second phrase reveals as the mat clears it.
       .to(
         phrase2Ref.current,
-        { opacity: 1, y: 0, duration: 0.55, ease: "power2.out" },
-        "-=0.5",
+        { opacity: 1, y: 0, duration: 0.7, ease: "power2.out" },
+        "-=0.6",
       )
       // Hold on the combined frame.
-      .to({}, { duration: 1.4 })
+      .to({}, { duration: 1.8 })
       // Exit: overlay slides up and off screen while the site
       // simultaneously slides up from just below its resting spot —
       // same duration + ease on both so they read as one swipe.
@@ -142,13 +166,13 @@ export default function IntroOverlay({ force = false, onDone }: Props) {
       .call(() => unblockReveal("intro"), [], "exit")
       .to(
         rootRef.current,
-        { yPercent: -100, duration: 0.9, ease: "expo.inOut" },
+        { yPercent: -100, duration: 1.1, ease: "expo.inOut" },
         "exit",
       );
     if (siteShell) {
       tl.to(
         siteShell,
-        { y: 0, duration: 0.9, ease: "expo.inOut", clearProps: "transform" },
+        { y: 0, duration: 1.1, ease: "expo.inOut", clearProps: "transform" },
         "exit",
       );
     }
@@ -181,36 +205,30 @@ export default function IntroOverlay({ force = false, onDone }: Props) {
       className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden cursor-pointer select-none"
       style={{ background: "#1a1a1a", willChange: "transform" }}
     >
-      {/* Full-bleed mat — a direct child of the root (not the
-          max-width text column below) so its right/left offsets are
-          measured against the actual viewport and it can genuinely
-          bleed off either edge. */}
+      {/* Mat — anchored bottom+center on mobile (sized by width, sweeps
+          vertically), top+right on desktop (sized by height, sweeps
+          horizontally). A direct child of the root, not the max-width
+          text column below, so its anchor is the real viewport edge. */}
       <img
         ref={matRef}
         src="/mat-green-side.svg"
         alt=""
-        className="absolute pointer-events-none z-[1]"
-        style={{
-          top: "50%",
-          right: MAT_REST_RIGHT,
-          height: MAT_HEIGHT,
-          width: "auto",
-          willChange: "transform, opacity",
-        }}
+        className="absolute pointer-events-none z-[1] bottom-0 left-1/2 w-[130vw] h-auto md:bottom-auto md:left-auto md:top-1/2 md:right-0 md:h-[100vh] md:w-auto"
+        style={{ willChange: "transform, opacity" }}
       />
 
-      <div className="relative z-[2] w-full max-w-[1400px] px-6 md:px-16 flex items-center justify-between pointer-events-none">
+      <div className="relative z-[2] w-full h-full md:h-auto max-w-[1400px] px-3 md:px-16 flex flex-col md:flex-row justify-between items-start md:items-center pointer-events-none py-10 md:py-0">
         <div
           ref={phrase1Ref}
-          className="serif text-white/95 leading-none"
-          style={{ fontSize: "clamp(1.75rem, 9vw, 7rem)" }}
+          className="serif text-white/95 leading-none whitespace-nowrap"
+          style={{ fontSize: "clamp(1.5rem, 7.5vw, 7rem)" }}
         >
           Between every cut,
         </div>
         <div
           ref={phrase2Ref}
-          className="serif text-white/95 leading-none text-right"
-          style={{ fontSize: "clamp(1.75rem, 9vw, 7rem)" }}
+          className="serif text-white/95 leading-none whitespace-nowrap text-left md:text-right"
+          style={{ fontSize: "clamp(1.5rem, 7.5vw, 7rem)" }}
         >
           a space for healing.
         </div>

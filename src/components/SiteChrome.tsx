@@ -488,7 +488,7 @@ function FooterCard() {
         height: "calc(var(--cell) * 5)",
         padding: "6px",
         fontFamily: '"CMU Typewriter Text", monospace',
-        fontSize: "10px",
+        fontSize: "12px",
         lineHeight: 1.1,
         letterSpacing: "0.22em",
         borderRadius: "2px",
@@ -521,33 +521,20 @@ function FooterCard() {
           <span>ARTISTS</span>
         </div>
         <div className="flex justify-between whitespace-nowrap">
-          <span>A</span>
-          <span>PUBLIC</span>
-          <span>ART</span>
-          <span>PROTOCOL</span>
-          <span>ON</span>
+          <span>SIGN</span>
+          <span>UP</span>
+          <span>TO</span>
+          <span>BE</span>
+          <span>NOTIFIED</span>
         </div>
         <div className="flex justify-between whitespace-nowrap">
-          <span>E</span>
-          <span>T</span>
-          <span>H</span>
-          <span>E</span>
-          <span>R</span>
-          <span>E</span>
-          <span>U</span>
-          <span>M</span>
+          <span>WHEN</span>
+          <span>DROP</span>
+          <span>002</span>
+          <span>IS</span>
         </div>
         <div className="flex justify-between whitespace-nowrap">
-          <span>O</span>
-          <span>P</span>
-          <span>E</span>
-          <span>P</span>
-          <span>E</span>
-          <span>N</span>
-          <span>.</span>
-          <span>A</span>
-          <span>R</span>
-          <span>T</span>
+          <span>AVAILABLE</span>
         </div>
       </div>
 
@@ -560,7 +547,7 @@ function FooterCard() {
           style={{
             height: "32px",
             padding: "4px 6px",
-            fontSize: "10px",
+            fontSize: "12px",
             color: "#ffffff",
           }}
         >
@@ -586,7 +573,7 @@ function FooterCard() {
 
       <div
         className="flex justify-between whitespace-nowrap"
-        style={{ fontSize: "10px" }}
+        style={{ fontSize: "12px" }}
       >
         <span>© 2026</span>
         <span>SELF-HEALING</span>

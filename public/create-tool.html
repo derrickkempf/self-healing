@@ -115,7 +115,11 @@
     border-top:1px solid var(--line);
     overflow-y:auto; padding-bottom:40px;
   }
-  section{border-bottom:1px solid var(--line); padding:14px;}
+  /* Right padding matches the main site's --cell (32px) chrome margin,
+     instead of the flat 14px used on the other three sides, so the
+     panel's content lines up with the same right-edge convention as
+     the rest of Self-Healing. */
+  section{border-bottom:1px solid var(--line); padding:14px 32px 14px 14px;}
   section h2{
     font-family: "DD Scottish Dewd Condensed", serif;
     font-size:18px; text-transform:uppercase; letter-spacing:1px;
@@ -126,8 +130,8 @@
   /* Plain rows — everything that ISN'T a range slider (buttons, text
      fields, color swatches, checkboxes). Simple label + control line. */
   .row{display:flex; align-items:center; gap:6px; margin-bottom:8px;}
-  .row label{flex:none; width:76px; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em;}
-  .row .val{flex:none; text-align:right; font-variant-numeric:tabular-nums; font-size:11px; color:var(--text);}
+  .row label{flex:none; width:76px; color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.18rem;}
+  .row .val{flex:none; text-align:right; font-variant-numeric:tabular-nums; font-size:12px; letter-spacing:.18rem; color:var(--text);}
   .row input[type=number]{width:70px; background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--text); padding:4px 6px; font:inherit;}
   .row input[type=text]{flex:1; background:var(--panel2); border:1px solid var(--line); border-radius:6px; color:var(--text); padding:6px 8px; font:inherit;}
   .row input[type=color]{width:36px; height:26px; border:1px solid var(--line); border-radius:6px; background:none; padding:1px; cursor:pointer;}
@@ -142,8 +146,8 @@
   .slider-row{margin-bottom:16px;}
   .slider-row:last-child{margin-bottom:0;}
   .slider-row .row-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px;}
-  .slider-row label{color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.06em;}
-  .slider-row .val{color:var(--text); font-size:11px; font-variant-numeric:tabular-nums;}
+  .slider-row label{color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.18rem;}
+  .slider-row .val{color:var(--text); font-size:12px; letter-spacing:.18rem; font-variant-numeric:tabular-nums;}
   input[type=range]{
     -webkit-appearance:none; appearance:none;
     width:100%; height:16px; margin:0; background:transparent; cursor:pointer;
@@ -156,26 +160,6 @@
   input[type=range]::-moz-range-track{height:1px; background:rgba(255,255,255,.25); border:none;}
   input[type=range]::-moz-range-thumb{width:11px; height:11px; border-radius:50%; background:#fff; border:none;}
   input[type=range]::-moz-range-progress{background:transparent;}
-
-  /* Info icon — replaces the old paragraph-length explanations under
-     each section. Hover shows the native title tooltip; click opens a
-     small floating panel with the full explanation. */
-  .info{
-    display:inline-flex; align-items:center; justify-content:center;
-    width:14px; height:14px; border-radius:50%; flex:none;
-    border:1px solid rgba(255,255,255,.35); color:rgba(255,255,255,.55);
-    font-size:9px; line-height:1; background:none; cursor:pointer;
-    margin-left:6px; padding:0; position:relative;
-    text-transform:none; letter-spacing:0; font-family:inherit;
-  }
-  .info:hover{border-color:#fff; color:#fff;}
-  .info-tip{
-    position:absolute; top:20px; left:0; width:200px;
-    background:#0d0d0d; border:1px solid var(--line); border-radius:4px;
-    padding:8px 10px; font-size:11px; line-height:1.45; color:var(--accent2);
-    text-transform:none; letter-spacing:0; z-index:30; cursor:default;
-    box-shadow:0 8px 24px rgba(0,0,0,.5);
-  }
 
   #pieceList{display:flex; flex-direction:column; gap:4px; margin-bottom:8px; max-height:220px; overflow-y:auto;}
   .pieceItem{display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:7px; background:var(--panel2); border:1px solid transparent; cursor:pointer;}
@@ -237,16 +221,7 @@
 
   <aside>
     <section>
-      <h2>
-        Transform (A → B)
-        <button
-          class="info"
-          type="button"
-          aria-label="About Transform"
-          title="Arrange pieces in A, switch to B and rearrange to set the end state. Play loops A → B → A. Auto-fill B with a prompt — known shapes: arrow, heart, star, circle, square, triangle, diamond, plus, x, moon, bolt. Anything else is spelled out as letters. Runs fully offline, no AI. Fine-tune in B mode afterward."
-          data-tip="Arrange pieces in A, switch to B and rearrange to set the end state. Play loops A → B → A. Auto-fill B with a prompt — known shapes: arrow, heart, star, circle, square, triangle, diamond, plus, x, moon, bolt. Anything else is spelled out as letters. Runs fully offline, no AI. Fine-tune in B mode afterward."
-        >i</button>
-      </h2>
+      <h2>Transform (A → B)</h2>
       <div class="row">
         <button class="small stateBtn on" id="stateA">A · start</button>
         <button class="small stateBtn" id="stateB">B · end</button>
@@ -285,16 +260,7 @@
     </section>
 
     <section>
-      <h2>
-        Stop-motion jitter
-        <button
-          class="info"
-          type="button"
-          aria-label="About stop-motion jitter"
-          title="Every piece gets its own random nudge per frame — like paper cutouts moved between photos."
-          data-tip="Every piece gets its own random nudge per frame — like paper cutouts moved between photos."
-        >i</button>
-      </h2>
+      <h2>Stop-motion jitter</h2>
       <div class="slider-row">
         <div class="row-head"><label>Position</label><span class="val" id="jPosV">10px</span></div>
         <input type="range" id="jPos" min="0" max="60" step="1" value="10">
@@ -312,13 +278,6 @@
     <section>
       <h2>
         Pieces <span id="pieceCount" style="color:var(--muted);font-weight:400;margin-left:4px"></span>
-        <button
-          class="info"
-          type="button"
-          aria-label="About Pieces"
-          title="SVGs and images both work as freeform pieces. Click to select, drag to move. Shift-click for multi-select · Cmd/Ctrl+A selects all · Esc deselects · Arrow keys nudge · Delete removes. Controls apply to every selected piece."
-          data-tip="SVGs and images both work as freeform pieces. Click to select, drag to move. Shift-click for multi-select · Cmd/Ctrl+A selects all · Esc deselects · Arrow keys nudge · Delete removes. Controls apply to every selected piece."
-        >i</button>
         <span class="spacer"></span>
         <button class="small" id="selAllBtn" style="text-transform:none;letter-spacing:0">Select all</button>
       </h2>
@@ -347,32 +306,14 @@
     </section>
 
     <section>
-      <h2>
-        Canvas
-        <button
-          class="info"
-          type="button"
-          aria-label="About grid guides"
-          title="Guides divide the canvas into an 8×8 grid (135×135px cells at 1080). Editor-only — never in exports."
-          data-tip="Guides divide the canvas into an 8×8 grid (135×135px cells at 1080). Editor-only — never in exports."
-        >i</button>
-      </h2>
+      <h2>Canvas</h2>
       <div class="row"><label>Width</label><input type="number" id="cw" value="1080" min="64" max="4096"></div>
       <div class="row"><label>Height</label><input type="number" id="ch" value="1080" min="64" max="4096"></div>
       <div class="row"><label class="toggle"><input type="checkbox" id="guidesChk" checked> Grid guides</label></div>
     </section>
 
     <section>
-      <h2>
-        Project
-        <button
-          class="info"
-          type="button"
-          aria-label="About saving projects"
-          title="Saves everything — pieces, colors, formation, settings — as a .json you can reload later."
-          data-tip="Saves everything — pieces, colors, formation, settings — as a .json you can reload later."
-        >i</button>
-      </h2>
+      <h2>Project</h2>
       <div class="btnrow">
         <button id="saveBtn">Save project</button>
         <button id="loadBtn">Load project</button>
@@ -1312,31 +1253,6 @@ $("projIn").addEventListener("change", async e=>{
   }catch(err){ alert("Couldn't load project: "+err.message); }
   e.target.value="";
 });
-
-/* ============================ Info tooltips ============================ */
-// Each ".info" button carries its full explanation in data-tip (and in
-// its title attribute, so hovering shows the browser's native tooltip
-// too). Clicking toggles a small floating panel with the same text —
-// this replaces the old paragraph-length hints that used to sit under
-// every section.
-function closeAllTips(exceptBtn){
-  document.querySelectorAll(".info-tip").forEach(tip=>{
-    if(tip.parentElement !== exceptBtn) tip.remove();
-  });
-}
-document.querySelectorAll(".info").forEach(btn=>{
-  btn.addEventListener("click", e=>{
-    e.stopPropagation();
-    const existing = btn.querySelector(".info-tip");
-    closeAllTips(btn);
-    if(existing) return; // second click on the same button just closes it
-    const tip = document.createElement("div");
-    tip.className = "info-tip";
-    tip.textContent = btn.dataset.tip;
-    btn.appendChild(tip);
-  });
-});
-document.addEventListener("click", ()=>closeAllTips(null));
 
 /* ============================ Init ============================ */
 buildScene();
