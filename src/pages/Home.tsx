@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import SiteChrome from "../components/SiteChrome";
 import StageCard from "../components/StageCard";
+import FreeformImageLayer from "../components/FreeformImageLayer";
 import {
   AboutContent,
   GalleryContent,
@@ -208,6 +209,7 @@ export default function Home() {
             <AboutContent />
           </StageCard>
         )}
+        <FreeformImageLayer page="home" isDesktop={isDesktop} />
       </StageArea>
     </SiteChrome>
   );

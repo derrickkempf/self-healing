@@ -53,6 +53,24 @@ export interface GalleryImage {
   created_at: string;
 }
 
+/** A freeform image an admin has dropped onto a public page (e.g.
+ *  "home"). Position/size are in grid cells, same unit StageCard uses,
+ *  so they share the same `calc(var(--cell) * n)` CSS. This is the
+ *  DEFAULT everyone sees; an individual visitor can drag it further —
+ *  that override lives only in their own browser's localStorage and
+ *  never touches this row (see useLocalOverride). */
+export interface PageImage {
+  id: string;
+  page: string;
+  url: string; // base64 data url
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  z: number;
+  created_at: string;
+}
+
 export interface NotificationPrefs {
   email: string;
   // Show a browser notification (and, in production, send email) when a new

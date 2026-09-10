@@ -13,6 +13,7 @@ import type {
   GalleryImage,
   Message,
   NotificationPrefs,
+  PageImage,
   Post,
   Profile,
 } from "../types";
@@ -515,6 +516,96 @@ export async function moveGalleryImage(
   ]);
 }
 
+// ---------- page images (freeform overlay) ----------
+
+export async function listPageImages(page: string): Promise<PageImage[]> {
+  const { data, error } = await supabase
+    .from("page_images")
+    .select("*")
+    .eq("page", page)
+    .order("z", { ascending: true });
+  if (error) {
+    console.error("[supabase] listPageImages", error);
+    return [];
+  }
+  return (data ?? []) as PageImage[];
+}
+
+/** Insert a new freeform image. Admin-only per RLS — callers should
+ *  gate the upload UI behind useIsAdmin() themselves too. */
+export async function addPageImage(input: {
+  page: string;
+  url: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}): Promise<{ image: PageImage | null; error: string | null }> {
+  const { data: maxRow } = await supabase
+    .from("page_images")
+    .select("z")
+    .eq("page", input.page)
+    .order("z", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const nextZ = (maxRow?.z ?? 0) + 1;
+
+  const { data, error } = await supabase
+    .from("page_images")
+    .insert({
+      page: input.page,
+      url: input.url,
+      x: input.x,
+      y: input.y,
+      w: input.w,
+      h: input.h,
+      z: nextZ,
+    })
+    .select()
+    .single();
+  if (error) {
+    console.error("[supabase] addPageImage FAILED", error);
+    return { image: null, error: formatSupabaseError(error) };
+  }
+  return { image: data as PageImage, error: null };
+}
+
+/** Persist an admin's move/resize as the new default position everyone
+ *  sees. Never called for a non-admin visitor's drag — that's handled
+ *  entirely client-side via localStorage (see useLocalOverride). */
+export async function updatePageImage(
+  id: string,
+  patch: Partial<Pick<PageImage, "x" | "y" | "w" | "h" | "z">>,
+): Promise<void> {
+  const { error } = await supabase
+    .from("page_images")
+    .update(patch)
+    .eq("id", id);
+  if (error) console.error("[supabase] updatePageImage", error);
+}
+
+export async function removePageImage(
+  id: string,
+): Promise<{ deleted: boolean; error: string | null }> {
+  const { data, error } = await supabase
+    .from("page_images")
+    .delete()
+    .eq("id", id)
+    .select();
+  if (error) {
+    console.error("[supabase] removePageImage FAILED", error);
+    return { deleted: false, error: formatSupabaseError(error) };
+  }
+  const deleted = Array.isArray(data) && data.length > 0;
+  if (!deleted) {
+    return {
+      deleted: false,
+      error: "Nothing was deleted — the admin RLS policy may not be applied yet.",
+    };
+  }
+  return { deleted: true, error: null };
+}
+
 // ---------- notification prefs ----------
 
 function defaultPrefs(email: string): NotificationPrefs {
@@ -570,13 +661,14 @@ export async function saveNotificationPrefs(
 // debounced through a microtask so several quick changes coalesce into
 // one re-fetch in the caller.
 
-type Channel = "posts" | "messages" | "gallery" | "profiles";
+type Channel = "posts" | "messages" | "gallery" | "profiles" | "page_images";
 
 const TABLE_FOR: Record<Channel, string> = {
   posts: "posts",
   messages: "messages",
   gallery: "gallery_images",
   profiles: "profiles",
+  page_images: "page_images",
 };
 
 export function subscribe(channel: Channel, cb: () => void): () => void {

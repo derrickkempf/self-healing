@@ -155,6 +155,30 @@ create index if not exists gallery_position_idx
   on public.gallery_images (position);
 
 -- ============================================================================
+-- page_images (freeform image overlay — admin-placed, per page)
+-- ============================================================================
+-- Images an admin drops anywhere on a public page (currently just
+-- 'home'), positioned in grid cells like the stage cards. Everyone sees
+-- an admin's placement by default; a regular visitor can also drag one
+-- around, but that override is stored in THEIR OWN browser's
+-- localStorage only (see useLocalOverride in the client) and never
+-- written here — so it never affects what anyone else sees.
+
+create table if not exists public.page_images (
+  id         uuid primary key default gen_random_uuid(),
+  page       text not null default 'home',
+  url        text not null,       -- base64 data url, same pattern as gallery_images
+  x          numeric not null default 0,
+  y          numeric not null default 0,
+  w          numeric not null default 8,
+  h          numeric not null default 8,
+  z          integer not null default 1,
+  created_at timestamptz not null default now()
+);
+create index if not exists page_images_page_idx
+  on public.page_images (page);
+
+-- ============================================================================
 -- site_content (headless CMS store)
 -- ============================================================================
 -- Editable copy for the public site. Every editable block on the site
@@ -205,6 +229,7 @@ alter publication supabase_realtime add table public.posts;
 alter publication supabase_realtime add table public.messages;
 alter publication supabase_realtime add table public.gallery_images;
 alter publication supabase_realtime add table public.profiles;
+alter publication supabase_realtime add table public.page_images;
 
 -- ============================================================================
 -- Row Level Security
@@ -223,6 +248,7 @@ alter table public.whitelist          enable row level security;
 alter table public.signups            enable row level security;
 alter table public.site_content       enable row level security;
 alter table public.admins             enable row level security;
+alter table public.page_images        enable row level security;
 -- admins — no client policies. Only readable via the is_admin() SECURITY
 -- DEFINER function (which has BYPASSRLS). Manage rows in the SQL editor.
 
@@ -313,6 +339,25 @@ create policy "gallery: update allowed" on public.gallery_images
   for update using (public.is_whitelisted());
 create policy "gallery: delete allowed" on public.gallery_images
   for delete using (public.is_whitelisted());
+
+-- page_images — public read (anyone browsing the site sees the placed
+-- images), ADMIN-ONLY write. Placing/moving/removing a freeform image
+-- changes what every visitor sees by default, so it's gated the same
+-- way as site_content rather than opened to all whitelisted
+-- collaborators. A regular visitor's own drag-to-reposition never
+-- reaches this table at all — see useLocalOverride on the client.
+drop policy if exists "page_images: public read"   on public.page_images;
+drop policy if exists "page_images: admin insert"  on public.page_images;
+drop policy if exists "page_images: admin update"  on public.page_images;
+drop policy if exists "page_images: admin delete"  on public.page_images;
+create policy "page_images: public read" on public.page_images
+  for select using (true);
+create policy "page_images: admin insert" on public.page_images
+  for insert with check (public.is_admin());
+create policy "page_images: admin update" on public.page_images
+  for update using (public.is_admin());
+create policy "page_images: admin delete" on public.page_images
+  for delete using (public.is_admin());
 
 -- notification_prefs
 drop policy if exists "prefs: read self"   on public.notification_prefs;

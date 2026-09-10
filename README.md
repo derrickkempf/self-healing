@@ -20,14 +20,15 @@ The site is a small React SPA that acts as both a public storefront and a privat
 
 ## Features
 
-- Grid-based, drag-and-resize card layout — every measurement snaps to the 32-px cell.
+- Free-form, drag-and-resize card layout on a 32-px drafting grid — position and size move at full pixel precision (no snapping).
+- Freeform image overlay on the landing page: admins drop in an image, then drag/scale it anywhere on the page — that becomes the default every visitor sees. Visitors can drag it further themselves, but that nudge is local to their own browser only.
 - Realtime Progress feed powered by Supabase Postgres change subscriptions.
 - Email-OTP auth via Supabase, with an allow-list table (nine collaborators, currently).
 - Live in-app chat between collaborators, with avatars, replies, and an emoji picker.
 - CSS-only drafting-grid background with a fixed diagonal accent line.
 - Masonry gallery with lazy-loaded, blur-up image reveals and a lightbox on click.
 - Delete affordances on your own updates and messages; RLS-enforced ownership.
-- Fully responsive: desktop uses a free-form draggable stage; tablet and mobile fall back to a flex-wrap flow with a hamburger drawer nav.
+- Fully responsive: desktop uses a free-form draggable stage; tablet and mobile fall back to a flex-wrap flow. Nav is a persistent, always-visible row at every breakpoint (no hamburger drawer).
 - Fonts self-hosted from `public/fonts/` — CMU Typewriter Text (body) and DD Scottish Dewd Condensed (display/headings).
 - Custom intro overlay animation on first visit each session.
 
@@ -59,6 +60,8 @@ src/
     SiteChrome.tsx     Full page shell — chrome, nav, logo, footer, grid
     StageCard.tsx      Draggable, resizable panel used across the stage
     StageCards.tsx     Card content: About, Progress, Gallery, Messaging, New Update
+    FreeformImage.tsx      Single draggable/resizable image overlay panel
+    FreeformImageLayer.tsx Fetches/renders a page's freeform images, admin upload trigger
     IntroOverlay.tsx   One-shot intro animation
     PageTransition.tsx Cross-route fade
     Reveal.tsx         Intersection-observer fade-up wrapper
@@ -66,10 +69,13 @@ src/
   utils/
     supabaseClient.ts  Shared Supabase client
     supabase.ts        Async wrappers: posts, messages, profiles, gallery,
-                       prefs, signups
+                       prefs, signups, page_images
     auth.ts            Sign-in / sign-out helpers (email OTP)
     useAuth.ts         Reactive session hook
+    useIsAdmin.ts      Checks public.is_admin() for the signed-in user
     useStageLayout.ts  Per-card position/size state with localStorage
+    useLocalImageOverride.ts  Per-visitor localStorage override for a
+                       freeform image's position (never synced to Supabase)
     notifications.ts   Browser-notification listener
     reveal-gate.ts     Coordinates reveals during intro / page transitions
   styles/
@@ -116,6 +122,8 @@ The site runs on Supabase for auth, storage, and realtime. To point this project
 5. **Set env vars** by copying `.env.example` to `.env.local` and filling them in.
 
 Read the top of `supabase/schema.sql` for a full walkthrough of what each table does and the RLS policies that guard it.
+
+> **Already have a Supabase project running?** `schema.sql` uses `create table if not exists` / `drop policy if exists` throughout, so it's safe to re-paste the whole file into the SQL Editor any time it changes — existing tables and data are left alone, and only new tables/policies (like `page_images`, for the freeform image overlay) get added.
 
 ---
 
