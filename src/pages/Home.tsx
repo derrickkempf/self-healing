@@ -46,6 +46,10 @@ export default function Home() {
   const [openCards, setOpenCards] = useState<Set<CardId>>(
     new Set(ALL_CARDS),
   );
+  // Lowest edge (in cells) of any freeform image placed on the page —
+  // reported up by FreeformImageLayer so the stage grows to keep
+  // covering images placed further down than the cards alone require.
+  const [imagesMaxBottom, setImagesMaxBottom] = useState(0);
 
   const { layout, isDesktop, moveCard, resizeCard, focusCard } =
     useStageLayout({
@@ -137,9 +141,14 @@ export default function Home() {
     };
   }, [open]);
 
-  // Container min-height grows to accommodate the lowest-hanging card.
+  // Container min-height grows to accommodate the lowest-hanging card
+  // OR the lowest-placed freeform image — whichever extends further —
+  // so the grid/background (which fills this container) always keeps
+  // going at least that far down instead of stopping short above
+  // content placed below the cards.
   const maxBottom = Math.max(
     24,
+    imagesMaxBottom,
     ...Object.values(layout).map((b) => b.y + b.h),
   );
 
@@ -209,7 +218,11 @@ export default function Home() {
             <AboutContent />
           </StageCard>
         )}
-        <FreeformImageLayer page="home" isDesktop={isDesktop} />
+        <FreeformImageLayer
+          page="home"
+          isDesktop={isDesktop}
+          onMaxBottomChange={setImagesMaxBottom}
+        />
       </StageArea>
     </SiteChrome>
   );

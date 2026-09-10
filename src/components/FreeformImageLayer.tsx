@@ -35,9 +35,16 @@ const DEFAULT_H = 10;
 export default function FreeformImageLayer({
   page,
   isDesktop,
+  onMaxBottomChange,
 }: {
   page: string;
   isDesktop: boolean;
+  /** Called with the lowest edge (in cells) of any placed image,
+   *  whenever the image list changes — so the page hosting this layer
+   *  can grow its own height (and, with it, the grid/background) to
+   *  keep covering images placed further down than the cards alone
+   *  would require. */
+  onMaxBottomChange?: (cells: number) => void;
 }) {
   const { isAdmin } = useIsAdmin();
   const [images, setImages] = useState<PageImage[]>([]);
@@ -61,6 +68,17 @@ export default function FreeformImageLayer({
       unsub();
     };
   }, [page]);
+
+  // Report the lowest image edge back up to the page so its container
+  // (and therefore the grid background, which fills that container)
+  // can grow to keep including it. Images are absolutely positioned,
+  // so they'd otherwise overflow silently past a container sized only
+  // for the cards, with the grid/background stopping short above them.
+  useEffect(() => {
+    if (!onMaxBottomChange) return;
+    const bottom = images.reduce((max, img) => Math.max(max, img.y + img.h), 0);
+    onMaxBottomChange(bottom);
+  }, [images, onMaxBottomChange]);
 
   const focusImage = useCallback((id: string) => {
     setMaxZ((prev) => {
