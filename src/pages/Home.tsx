@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import SiteChrome from "../components/SiteChrome";
 import StageCard from "../components/StageCard";
@@ -230,8 +230,23 @@ export default function Home() {
 
 /**
  * Stage container — absolute positioning host on desktop, flex-wrap
- * fallback on smaller screens. minCells grows with the layout so
- * dragged-below cards don't fall off the bottom of a fixed-height stage.
+ * fallback on smaller screens.
+ *
+ * Height comes from two sources, combined via CSS `max()`:
+ *   1. `minCells` — a cell count the caller computes from whatever
+ *      content sources it already knows about (cards, freeform images).
+ *      This is what's available on the very first paint.
+ *   2. A live pixel measurement of every direct child's actual bottom
+ *      edge, taken via ResizeObserver + MutationObserver. Every child
+ *      here (cards, freeform images, and anything added later) is
+ *      absolutely positioned, so it never contributes to this
+ *      container's own auto height on its own — without this
+ *      measurement, anything placed below whatever minCells accounts
+ *      for would silently overflow past where the grid/background
+ *      stops, which is exactly the cutoff this fixes. Because it
+ *      measures the real DOM rather than enumerating content types, it
+ *      stays correct even for future content this component doesn't
+ *      know about yet.
  */
 function StageArea({
   children,
@@ -242,17 +257,81 @@ function StageArea({
   isDesktop: boolean;
   minCells: number;
 }) {
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const [measuredHeight, setMeasuredHeight] = useState(0);
+
+  useLayoutEffect(() => {
+    if (!isDesktop) return;
+    const host = hostRef.current;
+    if (!host) return;
+
+    const observedChildren = new Set<Element>();
+    const ro = new ResizeObserver(measure);
+
+    function syncObservedChildren() {
+      const current = new Set(Array.from(host!.children));
+      for (const el of current) {
+        if (!observedChildren.has(el)) {
+          ro.observe(el);
+          observedChildren.add(el);
+        }
+      }
+      for (const el of observedChildren) {
+        if (!current.has(el)) {
+          ro.unobserve(el);
+          observedChildren.delete(el);
+        }
+      }
+    }
+
+    function measure() {
+      const hostTop = host!.getBoundingClientRect().top;
+      let bottom = 0;
+      for (const child of Array.from(host!.children)) {
+        const rect = (child as HTMLElement).getBoundingClientRect();
+        bottom = Math.max(bottom, rect.bottom - hostTop);
+      }
+      setMeasuredHeight((prev) => (Math.abs(prev - bottom) > 1 ? bottom : prev));
+    }
+
+    syncObservedChildren();
+    ro.observe(host);
+    measure();
+
+    // Catches new/removed children (new images, cards opening/closing)
+    // and any inline-style change on existing ones (drag/resize, which
+    // React applies as a style-attribute update).
+    const mo = new MutationObserver(() => {
+      syncObservedChildren();
+      measure();
+    });
+    mo.observe(host, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["style"],
+    });
+    window.addEventListener("resize", measure);
+
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [isDesktop]);
+
   if (isDesktop) {
     // Desktop stage retains the full 1-cell padding so cards line up
     // cleanly with the drafting grid.
     return (
       <div
+        ref={hostRef}
         className="relative"
         style={{
           paddingLeft: "var(--cell)",
           paddingRight: "var(--cell)",
           paddingBottom: "calc(var(--cell) * 7)",
-          minHeight: `calc(var(--cell) * ${minCells})`,
+          minHeight: `max(calc(var(--cell) * ${minCells}), ${measuredHeight}px)`,
         }}
       >
         {children}
