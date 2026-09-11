@@ -534,7 +534,9 @@ function FooterCard() {
           <span>IS</span>
         </div>
         <div className="flex justify-between whitespace-nowrap">
-          <span>AVAILABLE</span>
+          {"AVAILABLE".split("").map((ch, i) => (
+            <span key={i}>{ch}</span>
+          ))}
         </div>
       </div>
 
@@ -543,18 +545,19 @@ function FooterCard() {
           low-opacity surrounding chrome copy. */}
       <div>
         <div
-          className="border border-white/15 rounded-full flex items-center overflow-hidden"
+          className="border rounded-full flex items-center overflow-hidden"
           style={{
             height: "32px",
             padding: "4px 6px",
             fontSize: "12px",
             color: "#ffffff",
+            borderColor: "#ffffff85",
           }}
         >
           <div className="sh-marquee">
             {Array.from({ length: 6 }).map((_, i) => (
               <span key={i} className="inline-flex items-center">
-                <span>A SPACE FOR HEALING</span>
+                <span>ENTER YOUR EMAIL HERE</span>
                 <span
                   aria-hidden
                   className="inline-block rounded-full bg-white/50"
