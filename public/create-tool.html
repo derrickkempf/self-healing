@@ -106,7 +106,15 @@
       linear-gradient(45deg,#181818 25%,transparent 25%,transparent 75%,#181818 75%),
       linear-gradient(45deg,#181818 25%,transparent 25%,transparent 75%,#181818 75%);
     background-color:#1f1f1f; background-size:24px 24px; background-position:0 0,12px 12px;}
-  #stage{max-width:100%; max-height:100%; box-shadow:0 8px 40px rgba(0,0,0,.5); border-radius:4px; touch-action:none;}
+  /* `color` resets to the SVG/CSS default (black) here, isolated from
+     the page chrome's white `color:var(--text)`. Some uploaded SVGs
+     use `fill="currentColor"` so they can be recolored by whatever
+     context they're dropped into — without this reset they'd silently
+     pick up the page's white text color and look "recolored" even
+     though the user never touched the color swatch. Pieces only
+     actually change color via setColor()/recolor(), which bakes a
+     literal fill/stroke onto the markup. */
+  #stage{max-width:100%; max-height:100%; box-shadow:0 8px 40px rgba(0,0,0,.5); border-radius:4px; touch-action:none; color:#000;}
 
   aside{
     width:256px; flex:none;
@@ -114,6 +122,11 @@
     border-left:1px solid var(--line);
     border-top:1px solid var(--line);
     overflow-y:auto; padding-bottom:40px;
+    /* Outer right margin matches the main site's --cell (32px) chrome
+       margin, so the panel doesn't run flush to the browser edge —
+       same convention as the right-edge inset used everywhere else on
+       Self-Healing. */
+    margin-right:32px;
   }
   /* Right padding matches the main site's --cell (32px) chrome margin,
      instead of the flat 14px used on the other three sides, so the
@@ -165,7 +178,9 @@
   .pieceItem{display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:7px; background:var(--panel2); border:1px solid transparent; cursor:pointer;}
   .pieceItem.sel{border-color:var(--accent);}
   .pieceItem .thumb{width:26px; height:26px; flex:none; background:#fff2; border-radius:4px; display:flex; align-items:center; justify-content:center; overflow:hidden;}
-  .pieceItem .thumb svg{width:22px; height:22px;}
+  /* Same `color` reset as #stage — the thumbnail preview shouldn't
+     recolor currentColor-based SVGs to the panel's white UI text. */
+  .pieceItem .thumb svg{width:22px; height:22px; color:#000;}
   .pieceItem .nm{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12px;}
   .pieceItem .ops{display:flex; gap:2px;}
   .pieceItem .ops button{padding:1px 6px; font-size:11px; border-radius:5px;}
@@ -189,7 +204,7 @@
   @media (max-width: 900px) {
     main { flex-direction:column; }
     #stageWrap { min-height:320px; }
-    aside { width:100%; border-left:none; border-top:1px solid var(--line); }
+    aside { width:100%; border-left:none; border-top:1px solid var(--line); margin-right:0; }
   }
 </style>
 </head>

@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { useIsAdmin } from "../utils/useIsAdmin";
+import { submitSignup } from "../utils/supabase";
 
 /**
  * SiteChrome — the page shell.
@@ -480,6 +482,24 @@ function FooterCard() {
   // 8 cells wide × 5 cells tall = 256 × 160 px, per spec. All text at
   // 10 px; content justified between top/middle/bottom rows so the
   // pill sits centered vertically in the block.
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "sending" | "ok" | "err">(
+    "idle",
+  );
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.trim() || status === "sending") return;
+    setStatus("sending");
+    const { ok } = await submitSignup(email);
+    if (ok) {
+      setStatus("ok");
+      setEmail("");
+    } else {
+      setStatus("err");
+    }
+  }
+
   return (
     <div
       className="border border-white/15"
@@ -520,58 +540,105 @@ function FooterCard() {
           <span>EDITION</span>
           <span>ARTISTS</span>
         </div>
-        <div className="flex justify-between whitespace-nowrap">
+        <div
+          className="flex justify-between whitespace-nowrap"
+          style={{ color: "#ffffff" }}
+        >
           <span>SIGN</span>
           <span>UP</span>
           <span>TO</span>
           <span>BE</span>
           <span>NOTIFIED</span>
         </div>
-        <div className="flex justify-between whitespace-nowrap">
+        <div
+          className="flex justify-between whitespace-nowrap"
+          style={{ color: "#ffffff" }}
+        >
           <span>WHEN</span>
           <span>DROP</span>
           <span>002</span>
           <span>IS</span>
         </div>
-        <div className="flex justify-between whitespace-nowrap">
+        <div
+          className="flex justify-between whitespace-nowrap"
+          style={{ color: "#ffffff" }}
+        >
           {"AVAILABLE".split("").map((ch, i) => (
             <span key={i}>{ch}</span>
           ))}
         </div>
       </div>
 
-      {/* Scrolling marquee pill — 32 px tall, 4/6 padding, 10 px text.
-          Text color pinned to full-opacity white so it pops against the
-          low-opacity surrounding chrome copy. */}
+      {/* Email signup pill — 32 px tall, 4/6 padding, 10 px text. Doubles
+          as the notify-list capture: typing an email and hitting Enter
+          (or the dot button) submits the same signup used on /notify.
+          On success the pill swaps to a static "thanks" state. */}
       <div>
-        <div
-          className="border rounded-full flex items-center overflow-hidden"
-          style={{
-            height: "32px",
-            padding: "4px 6px",
-            fontSize: "12px",
-            color: "#ffffff",
-            borderColor: "#ffffff85",
-          }}
-        >
-          <div className="sh-marquee">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <span key={i} className="inline-flex items-center">
-                <span>ENTER YOUR EMAIL HERE</span>
-                <span
-                  aria-hidden
-                  className="inline-block rounded-full bg-white/50"
-                  style={{
-                    width: "3px",
-                    height: "3px",
-                    margin: "0 14px",
-                    flex: "none",
-                  }}
-                />
-              </span>
-            ))}
+        {status === "ok" ? (
+          <div
+            className="border rounded-full flex items-center justify-center overflow-hidden"
+            style={{
+              height: "32px",
+              padding: "4px 6px",
+              fontSize: "12px",
+              color: "#ffffff",
+              borderColor: "#ffffff85",
+            }}
+          >
+            <span>THANKS FOR SIGNING UP!</span>
           </div>
-        </div>
+        ) : (
+          <form
+            onSubmit={handleSubmit}
+            className="border rounded-full flex items-center overflow-hidden"
+            style={{
+              height: "32px",
+              padding: "4px 6px",
+              fontSize: "12px",
+              color: "#ffffff",
+              borderColor: "#ffffff85",
+            }}
+          >
+            <input
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="ENTER YOUR EMAIL HERE"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={status === "sending"}
+              className="flex-1 min-w-0 bg-transparent outline-none placeholder-white/60 disabled:opacity-60"
+              style={{
+                color: "#ffffff",
+                fontFamily: "inherit",
+                fontSize: "inherit",
+                letterSpacing: "inherit",
+                textTransform: "uppercase",
+              }}
+            />
+            <button
+              type="submit"
+              aria-label="Sign up for updates"
+              disabled={status === "sending" || !email.trim()}
+              className="inline-flex items-center justify-center flex-none disabled:opacity-30"
+              style={{ padding: "6px", margin: "-6px -2px -6px 2px" }}
+            >
+              <span
+                aria-hidden
+                className="inline-block rounded-full bg-white/70"
+                style={{ width: "5px", height: "5px" }}
+              />
+            </button>
+          </form>
+        )}
+        {status === "err" && (
+          <p
+            className="mt-1 text-right"
+            style={{ fontSize: "9px", color: "#ff9d9d", letterSpacing: "0.1em" }}
+          >
+            Something went wrong — try again.
+          </p>
+        )}
       </div>
 
       <div
