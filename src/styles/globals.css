@@ -199,3 +199,31 @@ button {
   white-space: nowrap;
   animation: sh-marquee 14s linear infinite;
 }
+/* Hovering the pill pauses the scroll so it's easy to read / click into. */
+.sh-marquee-pill:hover .sh-marquee {
+  animation-play-state: paused;
+}
+
+/* Kill every native chrome (border, outline, focus ring, autofill tint)
+   on the footer signup input so only our pill's own border shows —
+   no extra "lines" drawn inside it by the browser's default input
+   styling or by autofill. */
+.sh-marquee-input {
+  border: none;
+  outline: none;
+  box-shadow: none;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+.sh-marquee-input:focus {
+  outline: none;
+  box-shadow: none;
+}
+.sh-marquee-input:-webkit-autofill,
+.sh-marquee-input:-webkit-autofill:hover,
+.sh-marquee-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #ffffff;
+  -webkit-box-shadow: 0 0 0px 1000px transparent inset;
+  transition: background-color 9999s ease-in-out 0s;
+}

@@ -83,10 +83,13 @@
   .spacer{flex:1;}
 
   /* Logo box inside the header — 256×96, mirroring the site's
-     top-right logo cluster (8 × 3 cells). */
+     top-right logo cluster (8 × 3 cells). Bordered and inset on the
+     right by the same 32px --cell margin as the aside panel below it,
+     so the two line up into one even right edge. */
   #headerLogo{
     flex:none; width:256px; height:96px;
-    background:#1a1a1a; border-left:1px solid rgba(255,255,255,0.15);
+    background:#1a1a1a; border:1px solid rgba(255,255,255,0.15);
+    margin-right:32px;
     display:block; text-decoration:none;
     transition:opacity 0.2s ease;
   }
@@ -121,11 +124,13 @@
     background:var(--panel);
     border-left:1px solid var(--line);
     border-top:1px solid var(--line);
+    border-right:1px solid var(--line);
     overflow-y:auto; padding-bottom:40px;
     /* Outer right margin matches the main site's --cell (32px) chrome
        margin, so the panel doesn't run flush to the browser edge —
        same convention as the right-edge inset used everywhere else on
-       Self-Healing. */
+       Self-Healing. Bordered on the right too, same as #headerLogo
+       above it, so the two line up into one even edge. */
     margin-right:32px;
   }
   /* Right padding matches the main site's --cell (32px) chrome margin,
@@ -204,7 +209,7 @@
   @media (max-width: 900px) {
     main { flex-direction:column; }
     #stageWrap { min-height:320px; }
-    aside { width:100%; border-left:none; border-top:1px solid var(--line); margin-right:0; }
+    aside { width:100%; border-left:none; border-right:none; border-top:1px solid var(--line); margin-right:0; }
   }
 </style>
 </head>

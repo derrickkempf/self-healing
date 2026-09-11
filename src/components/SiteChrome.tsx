@@ -483,9 +483,15 @@ function FooterCard() {
   // 10 px; content justified between top/middle/bottom rows so the
   // pill sits centered vertically in the block.
   const [email, setEmail] = useState("");
+  const [focused, setFocused] = useState(false);
   const [status, setStatus] = useState<"idle" | "sending" | "ok" | "err">(
     "idle",
   );
+  // The decorative scroll only shows while the field is untouched —
+  // empty and unfocused. As soon as it's focused or has a value the
+  // real input takes over (and its transparent, empty value is what
+  // lets the marquee show through underneath in the meantime).
+  const showMarquee = !focused && !email.trim();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -570,13 +576,17 @@ function FooterCard() {
       </div>
 
       {/* Email signup pill — 32 px tall, 4/6 padding, 10 px text. Doubles
-          as the notify-list capture: typing an email and hitting Enter
-          (or the dot button) submits the same signup used on /notify.
-          On success the pill swaps to a static "thanks" state. */}
+          as the notify-list capture: click/type an email and hit Enter
+          (or the arrow button) to submit the same signup used on
+          /notify. Untouched, it's a scrolling "ENTER YOUR EMAIL"
+          marquee that pauses on hover; once focused or typed into, the
+          real (invisible-chrome) input underneath takes over. After a
+          successful submit it goes back to being a scrolling marquee,
+          now reading "A PLACE FOR HEALING". */}
       <div>
         {status === "ok" ? (
           <div
-            className="border rounded-full flex items-center justify-center overflow-hidden"
+            className="sh-marquee-pill border rounded-full flex items-center overflow-hidden"
             style={{
               height: "32px",
               padding: "4px 6px",
@@ -585,12 +595,28 @@ function FooterCard() {
               borderColor: "#ffffff85",
             }}
           >
-            <span>THANKS FOR SIGNING UP!</span>
+            <div className="sh-marquee">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <span key={i} className="inline-flex items-center">
+                  <span>A PLACE FOR HEALING</span>
+                  <span
+                    aria-hidden
+                    className="inline-block rounded-full bg-white/50"
+                    style={{
+                      width: "3px",
+                      height: "3px",
+                      margin: "0 14px",
+                      flex: "none",
+                    }}
+                  />
+                </span>
+              ))}
+            </div>
           </div>
         ) : (
           <form
             onSubmit={handleSubmit}
-            className="border rounded-full flex items-center overflow-hidden"
+            className="sh-marquee-pill border rounded-full flex items-center overflow-hidden relative"
             style={{
               height: "32px",
               padding: "4px 6px",
@@ -599,35 +625,70 @@ function FooterCard() {
               borderColor: "#ffffff85",
             }}
           >
+            {showMarquee && (
+              <div
+                aria-hidden
+                className="sh-marquee absolute inset-0 flex items-center"
+                style={{ padding: "4px 6px", pointerEvents: "none" }}
+              >
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <span key={i} className="inline-flex items-center">
+                    <span>ENTER YOUR EMAIL</span>
+                    <span
+                      aria-hidden
+                      className="inline-block rounded-full bg-white/50"
+                      style={{
+                        width: "3px",
+                        height: "3px",
+                        margin: "0 14px",
+                        flex: "none",
+                      }}
+                    />
+                  </span>
+                ))}
+              </div>
+            )}
             <input
               type="email"
               required
+              aria-label="Email"
               autoComplete="email"
-              placeholder="ENTER YOUR EMAIL HERE"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
               disabled={status === "sending"}
-              className="flex-1 min-w-0 bg-transparent outline-none placeholder-white/60 disabled:opacity-60"
+              className="sh-marquee-input flex-1 min-w-0 disabled:opacity-60 relative"
               style={{
                 color: "#ffffff",
                 fontFamily: "inherit",
                 fontSize: "inherit",
                 letterSpacing: "inherit",
                 textTransform: "uppercase",
+                zIndex: 1,
               }}
             />
             <button
               type="submit"
               aria-label="Sign up for updates"
               disabled={status === "sending" || !email.trim()}
-              className="inline-flex items-center justify-center flex-none disabled:opacity-30"
-              style={{ padding: "6px", margin: "-6px -2px -6px 2px" }}
+              className="inline-flex items-center justify-center flex-none relative disabled:opacity-30"
+              style={{ padding: "6px", margin: "-6px -2px -6px 2px", zIndex: 1 }}
             >
-              <span
+              <svg
                 aria-hidden
-                className="inline-block rounded-full bg-white/70"
-                style={{ width: "5px", height: "5px" }}
-              />
+                viewBox="0 0 16 16"
+                fill="none"
+                style={{ width: "11px", height: "11px" }}
+              >
+                <path
+                  d="M2 8H14M14 8L9.5 3.5M14 8L9.5 12.5"
+                  stroke="#ffffff"
+                  strokeWidth="1.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </button>
           </form>
         )}
